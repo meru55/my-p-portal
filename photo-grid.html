@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Photo Grid Viewer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&family=DM+Mono:wght@300;400&display=swap');
+
+  :root {
+    --bg: #0e0e0e;
+    --surface: #181818;
+    --surface2: #222222;
+    --border: #2e2e2e;
+    --accent: #e8ff47;
+    --accent-dim: rgba(232,255,71,0.12);
+    --text: #f0f0f0;
+    --text-dim: #888;
+    --radius: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 16px 64px;
+  }
+
+  header {
+    width: 100%;
+    max-width: 900px;
+    margin-bottom: 32px;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+  }
+
+  header h1 {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+
+  header h1 span {
+    color: var(--accent);
+  }
+
+  header p {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .panel {
+    width: 100%;
+    max-width: 900px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+
+  .panel-title {
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .controls-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: flex-end;
+  }
+
+  .ctrl-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .ctrl-group label {
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+
+  .ctrl-group input[type="number"] {
+    width: 72px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 18px;
+    padding: 8px 10px;
+    text-align: center;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .ctrl-group input[type="number"]:focus {
+    border-color: var(--accent);
+  }
+
+  .ctrl-group select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    padding: 8px 10px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+
+  .ctrl-group select:focus {
+    border-color: var(--accent);
+  }
+
+  .ctrl-separator {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--text-dim);
+    padding-bottom: 6px;
+  }
+
+  .toggle-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .toggle {
+    position: relative;
+    width: 40px;
+    height: 22px;
+  }
+
+  .toggle input { display: none; }
+
+  .toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+
+  .toggle-slider::after {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 3px;
+    width: 14px;
+    height: 14px;
+    background: var(--text-dim);
+    border-radius: 50%;
+    transition: 0.2s;
+  }
+
+  .toggle input:checked + .toggle-slider {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+  }
+
+  .toggle input:checked + .toggle-slider::after {
+    background: var(--accent);
+    transform: translateX(18px);
+  }
+
+  .toggle-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  /* Drop zone */
+  .drop-zone {
+    width: 100%;
+    max-width: 900px;
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 40px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    margin-bottom: 20px;
+    position: relative;
+  }
+
+  .drop-zone:hover,
+  .drop-zone.dragover {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  .drop-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .drop-icon {
+    font-size: 36px;
+    margin-bottom: 12px;
+  }
+
+  .drop-text {
+    font-size: 14px;
+    color: var(--text-dim);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .drop-text strong {
+    color: var(--accent);
+  }
+
+  .photo-count {
+    margin-top: 8px;
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+    color: var(--text-dim);
+  }
+
+  /* Action buttons */
+  .btn-row {
+    width: 100%;
+    max-width: 900px;
+    display: flex;
+    gap: 12px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    padding: 10px 22px;
+    border-radius: 4px;
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    border: none;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+
+  .btn:active { transform: scale(0.97); }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #111;
+  }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+  .btn-danger {
+    background: transparent;
+    color: #ff6b6b;
+    border: 1px solid #3a2020;
+  }
+
+  .btn-danger:hover { border-color: #ff6b6b; }
+
+  /* Grid wrapper */
+  .grid-wrapper {
+    width: 100%;
+    max-width: 900px;
+  }
+
+  #photo-grid {
+    display: grid;
+    gap: 0;
+    width: 100%;
+    background: #ffffff;
+  }
+
+  .grid-cell {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 3/2;
+    background: #111;
+  }
+
+  .grid-cell img {
+    max-width: 100%;
+    max-height: 100%;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    transition: opacity 0.3s;
+  }
+
+  .grid-cell.empty {
+    border: 1px dashed #2a2a2a;
+  }
+
+  .grid-cell.empty::after {
+    content: attr(data-index);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: #333;
+  }
+
+  .cell-drag-handle {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    font-size: 10px;
+    padding: 3px 6px;
+    border-radius: 3px;
+    opacity: 0;
+    transition: opacity 0.2s;
+    cursor: grab;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .grid-cell:hover .cell-drag-handle { opacity: 1; }
+
+  /* Gap indicator */
+  .gap-active #photo-grid .grid-cell {
+    outline: 1px solid var(--border);
+  }
+
+  /* Status bar */
+  .status {
+    width: 100%;
+    max-width: 900px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 16px;
+    padding: 10px 0;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .status span { color: var(--accent); }
+
+  /* Saving overlay */
+  #saving-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  #saving-overlay.active { display: flex; }
+
+  #saving-overlay p {
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    color: var(--accent);
+  }
+
+  .spinner {
+    width: 32px;
+    height: 32px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Photo<span>Grid</span></h1>
+  <p>// browser-based grid viewer</p>
+</header>
+
+<!-- Controls -->
+<div class="panel">
+  <div class="panel-title">Grid Config</div>
+  <div class="controls-row">
+    <div class="ctrl-group">
+      <label>COLS（列）</label>
+      <input type="number" id="cols" value="2" min="1" max="10">
+    </div>
+    <div class="ctrl-separator">×</div>
+    <div class="ctrl-group">
+      <label>ROWS（行）</label>
+      <input type="number" id="rows" value="4" min="1" max="10">
+    </div>
+
+    <div class="ctrl-group" style="margin-left:24px;">
+      <label>背景色</label>
+      <select id="bg-color">
+        <option value="#ffffff" selected>White</option>
+        <option value="#000000">Black</option>
+        <option value="#1a1a1a">Dark Gray</option>
+        <option value="#f5f5f5">Light Gray</option>
+        <option value="#1a1a2e">Navy</option>
+      </select>
+    </div>
+
+    <div class="ctrl-group">
+      <label>セル比率</label>
+      <select id="aspect-ratio">
+        <option value="3/2">3:2（横長）</option>
+        <option value="16/9">16:9（ワイド）</option>
+        <option value="4/3">4:3</option>
+        <option value="1/1">1:1（正方形）</option>
+        <option value="2/3">2:3（縦長）</option>
+      </select>
+    </div>
+
+    <div class="ctrl-group">
+      <label>グリッド線</label>
+      <div class="toggle-group" style="padding-bottom:6px;">
+        <label class="toggle">
+          <input type="checkbox" id="show-grid-lines">
+          <span class="toggle-slider"></span>
+        </label>
+        <span class="toggle-label">表示</span>
+      </div>
+    </div>
+
+    <div class="ctrl-group">
+      <label>セル間隔</label>
+      <div class="toggle-group" style="padding-bottom:6px;">
+        <label class="toggle">
+          <input type="checkbox" id="show-gap">
+          <span class="toggle-slider"></span>
+        </label>
+        <span class="toggle-label">あり (4px)</span>
+      </div>
+    </div>
+
+    <div class="ctrl-group">
+      <label>繰り返し表示</label>
+      <div class="toggle-group" style="padding-bottom:6px;">
+        <label class="toggle">
+          <input type="checkbox" id="repeat-mode">
+          <span class="toggle-slider"></span>
+        </label>
+        <span class="toggle-label">1枚をループ</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Drop zone -->
+<div class="drop-zone" id="drop-zone">
+  <input type="file" id="file-input" accept="image/*" multiple>
+  <div class="drop-icon">📂</div>
+  <div class="drop-text"><strong>クリック</strong>またはここに画像をドロップ</div>
+  <div class="photo-count" id="photo-count">0 枚読み込み済み</div>
+</div>
+
+<!-- Action buttons -->
+<div class="btn-row">
+  <button class="btn btn-primary" id="apply-btn">グリッドを更新</button>
+  <button class="btn btn-secondary" id="save-btn">💾 画像として保存</button>
+  <button class="btn btn-danger" id="clear-btn">✕ クリア</button>
+</div>
+
+<!-- Grid output -->
+<div class="grid-wrapper">
+  <div id="photo-grid"></div>
+</div>
+
+<div class="status">
+  <div id="status-left">待機中</div>
+  <div id="status-right">cols: <span id="s-cols">2</span> × rows: <span id="s-rows">4</span> = <span id="s-total">8</span> cells</div>
+</div>
+
+<div id="saving-overlay">
+  <div class="spinner"></div>
+  <p>画像を生成中...</p>
+</div>
+
+<script>
+  let loadedImages = [];
+
+  const colsInput  = document.getElementById('cols');
+  const rowsInput  = document.getElementById('rows');
+  const bgSelect   = document.getElementById('bg-color');
+  const arSelect   = document.getElementById('aspect-ratio');
+  const gridLines  = document.getElementById('show-grid-lines');
+  const gapToggle  = document.getElementById('show-gap');
+  const repeatMode = document.getElementById('repeat-mode');
+  const grid       = document.getElementById('photo-grid');
+  const dropZone   = document.getElementById('drop-zone');
+  const fileInput  = document.getElementById('file-input');
+  const countEl    = document.getElementById('photo-count');
+  const statusLeft = document.getElementById('status-left');
+
+  // Drag over drop zone
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    handleFiles(e.dataTransfer.files);
+  });
+
+  fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+  function handleFiles(files) {
+    const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+    let loaded = 0;
+    imageFiles.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        loadedImages.push(e.target.result);
+        loaded++;
+        countEl.textContent = `${loadedImages.length} 枚読み込み済み`;
+        if (loaded === imageFiles.length) {
+          renderGrid();
+          statusLeft.textContent = `${imageFiles.length} 枚追加しました`;
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function renderGrid() {
+    const cols = Math.max(1, Math.min(10, parseInt(colsInput.value) || 2));
+    const rows = Math.max(1, Math.min(10, parseInt(rowsInput.value) || 4));
+    const total = cols * rows;
+    const bg = bgSelect.value;
+    const ar = arSelect.value;
+    const gap = gapToggle.checked ? '4px' : '0';
+    const border = gridLines.checked ? `1px solid rgba(255,255,255,0.15)` : 'none';
+
+    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    grid.style.gap = gap;
+    grid.style.background = bg;
+    grid.innerHTML = '';
+
+    for (let i = 0; i < total; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'grid-cell';
+      cell.style.aspectRatio = ar;
+      cell.style.background = bg;
+      if (gridLines.checked) cell.style.outline = '1px solid rgba(255,255,255,0.12)';
+      else cell.style.outline = 'none';
+
+      const isRepeat = repeatMode.checked && loadedImages.length > 0;
+      const imgIndex = isRepeat ? (i % loadedImages.length) : i;
+
+      if (imgIndex < loadedImages.length) {
+        const img = document.createElement('img');
+        img.src = loadedImages[imgIndex];
+        img.draggable = false;
+        cell.appendChild(img);
+        cell.classList.remove('empty');
+
+        const handle = document.createElement('div');
+        handle.className = 'cell-drag-handle';
+        handle.textContent = isRepeat ? `#${(imgIndex)+1}🔁` : `#${i+1}`;
+        cell.appendChild(handle);
+      } else {
+        cell.classList.add('empty');
+        cell.setAttribute('data-index', `#${i+1}`);
+      }
+
+      grid.appendChild(cell);
+    }
+
+    // Update status
+    document.getElementById('s-cols').textContent = cols;
+    document.getElementById('s-rows').textContent = rows;
+    document.getElementById('s-total').textContent = total;
+  }
+
+  document.getElementById('apply-btn').addEventListener('click', renderGrid);
+
+  // Auto re-render on config changes
+  [bgSelect, arSelect, gridLines, gapToggle, repeatMode].forEach(el => {
+    el.addEventListener('change', renderGrid);
+  });
+
+  document.getElementById('clear-btn').addEventListener('click', () => {
+    loadedImages = [];
+    countEl.textContent = '0 枚読み込み済み';
+    fileInput.value = '';
+    grid.innerHTML = '';
+    statusLeft.textContent = 'クリアしました';
+  });
+
+  // Save as image
+  document.getElementById('save-btn').addEventListener('click', async () => {
+    if (!grid.children.length) {
+      alert('先に画像を読み込んでグリッドを表示してください。');
+      return;
+    }
+    const overlay = document.getElementById('saving-overlay');
+    overlay.classList.add('active');
+
+    try {
+      const canvas = await html2canvas(grid, {
+        useCORS: true,
+        allowTaint: true,
+        scale: 2,
+        backgroundColor: bgSelect.value
+      });
+      const link = document.createElement('a');
+      const cols = colsInput.value;
+      const rows = rowsInput.value;
+      link.download = `photo-grid_${cols}x${rows}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      statusLeft.textContent = `photo-grid_${cols}x${rows}.png を保存しました`;
+    } catch (e) {
+      alert('保存に失敗しました: ' + e.message);
+    } finally {
+      overlay.classList.remove('active');
+    }
+  });
+
+  // Initial render
+  renderGrid();
+</script>
+</body>
+</html>
