@@ -1,0 +1,1999 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MIDI Backing Generator</title>
+<style>
+  :root {
+    --bg: #0f0f12;
+    --bg2: #16161c;
+    --bg3: #1e1e28;
+    --border: #2a2a38;
+    --accent: #e8ff47;
+    --accent2: #7f6fff;
+    --text: #e8e8f0;
+    --text2: #888899;
+    --text3: #555566;
+    --danger: #ff6b6b;
+    --success: #47ffb0;
+    --radius: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', 'Courier New', monospace;
+    font-size: 13px;
+    min-height: 100vh;
+  }
+
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&family=DM+Mono:wght@400;500&display=swap');
+
+  body { font-family: 'DM Mono', monospace; }
+  h1, h2, h3, .label { font-family: 'Syne', sans-serif; }
+
+  .app {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 32px 20px;
+  }
+
+  header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 20px;
+  }
+
+  header h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+  }
+
+  header span {
+    font-size: 11px;
+    color: var(--text3);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+
+  .panel-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 12px;
+  }
+
+  /* Chord Input */
+  .input-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 12px;
+  }
+
+  .tab-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text2);
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    transition: all 0.15s;
+  }
+
+  .tab-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--bg);
+    font-weight: 500;
+  }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  textarea {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    padding: 10px;
+    resize: vertical;
+    min-height: 80px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  textarea:focus { border-color: var(--accent2); }
+
+  .text-hint {
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 6px;
+  }
+
+  /* Chord Buttons */
+  .chord-builder {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .note-row, .quality-row, .ext-row {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  .chord-btn {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+    transition: all 0.1s;
+    white-space: nowrap;
+  }
+
+  .chord-btn:hover { border-color: var(--accent2); color: var(--text); }
+  .chord-btn.selected { background: var(--accent2); border-color: var(--accent2); color: white; }
+
+  .add-chord-btn {
+    background: var(--accent);
+    border: none;
+    color: var(--bg);
+    padding: 6px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    margin-top: 6px;
+    transition: opacity 0.15s;
+  }
+
+  .add-chord-btn:hover { opacity: 0.85; }
+
+  /* Chord List */
+  .chord-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 36px;
+    padding: 8px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-top: 8px;
+  }
+
+  .chord-tag {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: default;
+  }
+
+  .chord-tag .remove {
+    color: var(--text3);
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+  }
+
+  .chord-tag .remove:hover { color: var(--danger); }
+
+  /* MIDI Upload */
+  .upload-area {
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s;
+    color: var(--text3);
+    font-size: 12px;
+  }
+
+  .upload-area:hover { border-color: var(--accent2); color: var(--text2); }
+  .upload-area.has-file { border-color: var(--success); color: var(--success); }
+
+  /* Settings */
+  .setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .setting-row:last-child { border-bottom: none; }
+
+  .setting-label {
+    font-size: 12px;
+    color: var(--text2);
+  }
+
+  .setting-value {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  input[type="number"] {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    width: 64px;
+    outline: none;
+    text-align: center;
+  }
+
+  input[type="number"]:focus { border-color: var(--accent2); }
+
+  select {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  select:focus { border-color: var(--accent2); }
+
+  /* Tracks */
+  .track-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .track-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    transition: border-color 0.15s;
+  }
+
+  .track-item.enabled { border-color: var(--border); }
+
+  .track-item input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    accent-color: var(--accent);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .track-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .track-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    flex: 1;
+  }
+
+  .track-desc {
+    font-size: 11px;
+    color: var(--text3);
+  }
+
+  .track-ch {
+    font-size: 11px;
+    color: var(--text3);
+    white-space: nowrap;
+  }
+
+  /* Pattern display */
+  .pattern-bar {
+    display: flex;
+    gap: 2px;
+    margin-top: 4px;
+  }
+
+  .beat {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    background: var(--border);
+  }
+
+  .beat.on { background: var(--accent); }
+  .beat.on2 { background: var(--accent2); }
+
+  /* Generate Button */
+  .generate-section {
+    margin-top: 16px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .gen-btn {
+    background: var(--accent);
+    border: none;
+    color: var(--bg);
+    padding: 12px 28px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    transition: opacity 0.15s;
+    flex: 1;
+  }
+
+  .gen-btn:hover { opacity: 0.88; }
+  .gen-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .out-select {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px 14px;
+    border-radius: var(--radius);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    outline: none;
+  }
+
+  /* Preview */
+  .preview-section {
+    margin-top: 16px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    display: none;
+  }
+
+  .preview-section.visible { display: block; }
+
+  .preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
+  .preview-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text3);
+  }
+
+  .download-btns {
+    display: flex;
+    gap: 8px;
+  }
+
+  .dl-btn {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 5px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    transition: border-color 0.15s, color 0.15s;
+  }
+
+  .dl-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .track-preview-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .track-preview-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+  }
+
+  .tp-name {
+    width: 150px;
+    color: var(--text2);
+    flex-shrink: 0;
+  }
+
+  .piano-roll {
+    flex: 1;
+    height: 32px;
+    background: var(--bg3);
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .pr-note {
+    position: absolute;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--accent);
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0.85;
+  }
+
+  .pr-note.bass { background: #7f6fff; }
+  .pr-note.strings { background: #47ffb0; top: 30%; }
+  .pr-note.oct { background: #ff9f47; top: 70%; }
+
+  .status-bar {
+    margin-top: 16px;
+    font-size: 11px;
+    color: var(--text3);
+    display: flex;
+    gap: 16px;
+  }
+
+  .status-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text3);
+    margin-right: 5px;
+    vertical-align: middle;
+  }
+
+  .status-dot.ok { background: var(--success); }
+
+  /* Grid */
+  .grid-row {
+    display: flex;
+    height: 44px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    min-width: 100%;
+  }
+
+  .grid-row:first-child { border-top: 1px solid var(--border); }
+
+  .grid-cell {
+    flex-shrink: 0;
+    width: 40px;
+    height: 100%;
+    border-right: 1px solid var(--border);
+    box-sizing: border-box;
+  }
+
+  .grid-cell.beat { border-right-color: #333344; }
+  .grid-cell.bar-start { border-left: 2px solid #444455; }
+
+  .grid-block {
+    position: absolute;
+    top: 4px;
+    height: 36px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 6px 0 8px;
+    cursor: grab;
+    user-select: none;
+    box-sizing: border-box;
+    transition: opacity 0.1s;
+    overflow: hidden;
+  }
+
+  .grid-block:active { cursor: grabbing; opacity: 0.8; }
+
+  .grid-block-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: #0f0f12;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+    flex: 1;
+  }
+
+  .grid-block-resize {
+    width: 8px;
+    height: 100%;
+    cursor: ew-resize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    opacity: 0.5;
+  }
+
+  .grid-block-resize::after {
+    content: '||';
+    font-size: 8px;
+    color: #0f0f12;
+    pointer-events: none;
+  }
+
+  .grid-block-remove {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    width: 14px;
+    height: 14px;
+    background: var(--danger);
+    border-radius: 50%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    color: white;
+    cursor: pointer;
+    z-index: 10;
+  }
+
+  .grid-block:hover .grid-block-remove { display: flex; }
+
+  .grid-drop-target {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 1;
+  }
+
+  .grid-drop-target.drag-over { background: rgba(232,255,71,0.08); }
+
+  .palette-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    cursor: grab;
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    user-select: none;
+    transition: border-color 0.1s, transform 0.1s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+  }
+
+  .palette-card:hover { border-color: var(--accent2); transform: translateY(-1px); }
+  .palette-card:active { cursor: grabbing; transform: scale(0.96); }
+
+  .palette-card .degree {
+    font-size: 9px;
+    color: var(--text3);
+    font-family: 'DM Mono', monospace;
+    font-weight: 400;
+  }
+
+  /* Drum step sequencer */
+  .drum-row { display:flex; align-items:center; gap:4px; min-width:max-content; }
+  .drum-label { width:72px; font-size:11px; color:var(--text2); flex-shrink:0; text-align:right; padding-right:8px; font-family:'DM Mono',monospace; }
+  .drum-steps { display:flex; gap:2px; }
+  .step-btn { width:22px; height:28px; border-radius:3px; border:1px solid var(--border); background:var(--bg3); cursor:pointer; transition:background 0.08s,border-color 0.08s; flex-shrink:0; }
+  .step-btn.on { border-color:transparent; }
+  .step-btn.beat-start { border-left:2px solid #444455; }
+  .step-btn[data-part="kick"].on    { background:#ff6b6b; }
+  .step-btn[data-part="snare"].on   { background:#ffb347; }
+  .step-btn[data-part="hihat_c"].on { background:#e8ff47; }
+  .step-btn[data-part="hihat_o"].on { background:#c8df27; }
+  .step-btn[data-part="crash"].on   { background:#47ffb0; }
+  .step-btn[data-part="ride"].on    { background:#47d4ff; }
+  .step-btn[data-part="clap"].on    { background:#ff9f47; }
+  .drum-preset-btn { background:var(--bg3); border:1px solid var(--border); color:var(--text2); padding:4px 10px; border-radius:4px; cursor:pointer; font-size:11px; font-family:'DM Mono',monospace; white-space:nowrap; transition:all 0.1s; }
+  .drum-preset-btn:hover { border-color:var(--accent2); color:var(--text); }
+  .drum-preset-btn.active { background:var(--accent2); border-color:var(--accent2); color:white; }
+  .vel-wrap { display:flex; gap:2px; margin-top:2px; }
+  .vel-cell { width:22px; height:18px; position:relative; cursor:ns-resize; }
+  .vel-bar { position:absolute; bottom:0; left:2px; right:2px; border-radius:1px; background:var(--text3); min-height:2px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>MIDI Backing Generator</h1>
+    <span>v1.0</span>
+  </header>
+
+  <!-- コード入力 -->
+  <div class="panel" style="margin-bottom: 16px;">
+    <div class="panel-title">コード進行</div>
+    <div class="input-tabs">
+      <button class="tab-btn active" onclick="switchTab('text')">テキスト入力</button>
+      <button class="tab-btn" onclick="switchTab('button')">ボタンUI</button>
+      <button class="tab-btn" onclick="switchTab('midi')">MIDIアップロード</button>
+    </div>
+
+    <!-- テキスト -->
+    <div class="tab-content active" id="tab-text">
+      <textarea id="chord-text" placeholder="例: Cmaj7 Am7 Dm7 G7&#10;スペース・カンマ・改行で区切ってください"></textarea>
+      <div class="text-hint">対応: C Cm CM7 Cm7 C7 Csus2 Csus4 Cdim Caug Cm7b5 C9 Cmaj9 など</div>
+      <div class="error-msg" id="text-error"></div>
+    </div>
+
+    <!-- ボタン -->
+    <div class="tab-content" id="tab-button">
+      <!-- キー・スケール選択 -->
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+        <div style="font-size:11px;color:var(--text3);white-space:nowrap;">キー</div>
+        <select id="scale-key" onchange="renderPalette()" style="font-size:12px;">
+          <option>C</option><option>C#</option><option>D</option><option>D#</option>
+          <option>E</option><option>F</option><option>F#</option><option>G</option>
+          <option>G#</option><option>A</option><option>A#</option><option>B</option>
+        </select>
+        <select id="scale-type" onchange="renderPalette()" style="font-size:12px;">
+          <option value="major">Major</option>
+          <option value="minor">Natural Minor</option>
+          <option value="dorian">Dorian</option>
+          <option value="mixolydian">Mixolydian</option>
+        </select>
+        <div style="display:flex;gap:4px;margin-left:auto;">
+          <button class="chord-btn" id="ext-toggle" onclick="toggleExt()" style="font-size:11px;">7th ON</button>
+          <button class="chord-btn" onclick="clearGrid()" style="font-size:11px;color:var(--danger);">グリッドをクリア</button>
+        </div>
+      </div>
+      <!-- コードパレット -->
+      <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">スケールコード — ドラッグしてグリッドへ</div>
+      <div id="chord-palette" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;min-height:44px;"></div>
+      <!-- グリッドエリア -->
+      <div style="font-size:11px;color:var(--text3);margin-bottom:6px;display:flex;align-items:center;gap:8px;">
+        <span>コード進行グリッド</span>
+        <span style="color:var(--text3);font-size:10px;">右端をドラッグで長さ調整</span>
+        <button class="chord-btn" onclick="addGridBar()" style="font-size:11px;margin-left:auto;">+ 1小節追加</button>
+      </div>
+      <div id="chord-grid-wrap" style="overflow-x:auto;padding-bottom:4px;">
+        <div id="chord-grid" style="position:relative;"></div>
+      </div>
+      <div id="grid-ruler" style="display:flex;margin-top:4px;font-size:10px;color:var(--text3);"></div>
+    </div>
+
+
+
+    <!-- MIDI -->
+    <div class="tab-content" id="tab-midi">
+      <div class="upload-area" id="upload-area" onclick="document.getElementById('midi-file-input').click()">
+        <input type="file" id="midi-file-input" accept=".mid,.midi" style="display:none" onchange="handleMidiUpload(event)">
+        <div style="font-size:24px;margin-bottom:8px;">♩</div>
+        <div>MIDIファイルをクリックまたはドロップ</div>
+        <div style="font-size:11px;margin-top:4px;color:var(--text3)">.mid / .midi — コードトラック（単音またはポリ）を解析</div>
+      </div>
+      <div id="midi-status" style="margin-top:8px;font-size:12px;color:var(--text3);"></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <!-- 設定 -->
+    <div class="panel">
+      <div class="panel-title">設定</div>
+      <div class="setting-row">
+        <span class="setting-label">テンポ (BPM)</span>
+        <div class="setting-value">
+          <input type="number" id="bpm" value="120" min="40" max="240">
+        </div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">拍子</span>
+        <div class="setting-value">
+          <select id="time-sig">
+            <option value="4">4/4</option>
+            <option value="3">3/4</option>
+            <option value="6">6/8</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <span class="setting-label">ギターボイシング</span>
+        <div class="setting-value">
+          <select id="guitar-voicing">
+            <option value="open">オープン</option>
+            <option value="barre">バレー</option>
+            <option value="close">クローズ</option>
+          </select>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">カッティングパターン</span>
+        <div class="setting-value">
+          <select id="cut-pattern">
+            <option value="straight">ストレート 16th</option>
+            <option value="soul">ソウル (↓↑↓↑)</option>
+            <option value="funk">ファンク (ゴースト入り)</option>
+            <option value="bossa">ボサノバ</option>
+            <option value="ballad">バラード 8th</option>
+          </select>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">ベースオクターブ奏法</span>
+        <div class="setting-value">
+          <select id="oct-style">
+            <option value="standard">スタンダード</option>
+            <option value="muted">ミュート入り</option>
+            <option value="fill">フィル入り</option>
+          </select>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">ストリングス展開</span>
+        <div class="setting-value">
+          <select id="str-voicing">
+            <option value="spread">スプレッド</option>
+            <option value="close">クローズ</option>
+            <option value="melodic">メロディライン</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- トラック選択 -->
+    <div class="panel">
+      <div class="panel-title">トラック</div>
+      <div class="track-list">
+        <div class="track-item">
+          <input type="checkbox" id="tr-guitar" checked>
+          <div class="track-icon" style="background:#2a2018;color:#ffb347;">G</div>
+          <div style="flex:1">
+            <div class="track-name">Guitar Backing</div>
+            <div class="track-desc">カッティング / バッキング</div>
+          </div>
+          <div class="track-ch">Ch.1</div>
+        </div>
+        <div class="track-item">
+          <input type="checkbox" id="tr-bass-root" checked>
+          <div class="track-icon" style="background:#18202a;color:#7f6fff;">B</div>
+          <div style="flex:1">
+            <div class="track-name">Bass Root</div>
+            <div class="track-desc">ルート弾き</div>
+          </div>
+          <div class="track-ch">Ch.2</div>
+        </div>
+        <div class="track-item">
+          <input type="checkbox" id="tr-bass-oct" checked>
+          <div class="track-icon" style="background:#1a1a18;color:#e8ff47;">O</div>
+          <div style="flex:1">
+            <div class="track-name">Bass Octave</div>
+            <div class="track-desc">オクターブ奏法</div>
+          </div>
+          <div class="track-ch">Ch.3</div>
+        </div>
+        <div class="track-item">
+          <input type="checkbox" id="tr-strings" checked>
+          <div class="track-icon" style="background:#182018;color:#47ffb0;">S</div>
+          <div style="flex:1">
+            <div class="track-name">Strings Counter</div>
+            <div class="track-desc">カウンターメロディ (コードトーン)</div>
+          </div>
+          <div class="track-ch">Ch.4</div>
+        </div>
+        <div class="track-item">
+          <input type="checkbox" id="tr-drums" checked>
+          <div class="track-icon" style="background:#2a1a1a;color:#ff6b6b;">D</div>
+          <div style="flex:1">
+            <div class="track-name">Drums</div>
+            <div class="track-desc">GM Ch.10 ステップシーケンサー</div>
+          </div>
+          <div class="track-ch">Ch.10</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ドラムエディタ -->
+  <div class="panel" id="drum-panel" style="margin-bottom:16px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+      <div class="panel-title" style="margin:0;">ドラム</div>
+      <!-- プリセット -->
+      <div id="drum-presets" style="display:flex;gap:4px;flex-wrap:wrap;flex:1;"></div>
+      <!-- 小節数 -->
+      <div style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0;">
+        <span style="font-size:11px;color:var(--text3);">ループ</span>
+        <input type="number" id="drum-bars" value="2" min="1" max="8" style="width:48px;">
+        <span style="font-size:11px;color:var(--text3);">小節</span>
+      </div>
+    </div>
+
+    <!-- ステップグリッド -->
+    <div id="drum-grid" style="display:flex;flex-direction:column;gap:4px;overflow-x:auto;"></div>
+
+    <!-- 拍ルーラー -->
+    <div id="drum-ruler" style="display:flex;margin-top:6px;padding-left:76px;"></div>
+  </div>
+
+  <!-- Generate -->
+  <div class="generate-section">
+    <select class="out-select" id="out-format">
+      <option value="multi">マルチトラック (.mid)</option>
+      <option value="split">トラック別 (複数.mid)</option>
+      <option value="both">両方</option>
+    </select>
+    <button class="gen-btn" id="gen-btn" onclick="generate()">Generate MIDI</button>
+  </div>
+
+  <!-- Preview / Download -->
+  <div class="preview-section" id="preview-section">
+    <div class="preview-header">
+      <div class="preview-title">生成完了</div>
+      <div class="download-btns" id="dl-btns"></div>
+    </div>
+    <div class="track-preview-list" id="track-preview-list"></div>
+    <div class="status-bar" id="status-bar"></div>
+  </div>
+</div>
+
+<script>
+// ==================== コード定義 ====================
+const NOTE_MAP = {C:0,'C#':1,Db:1,D:2,'D#':3,Eb:3,E:4,F:5,'F#':6,Gb:6,G:7,'G#':8,Ab:8,A:9,'A#':10,Bb:10,B:11};
+const CHORD_TONES = {
+  '':      [0,4,7],
+  'm':     [0,3,7],
+  '7':     [0,4,7,10],
+  'M7':    [0,4,7,11],
+  'm7':    [0,3,7,10],
+  'mM7':   [0,3,7,11],
+  'dim':   [0,3,6],
+  'dim7':  [0,3,6,9],
+  'aug':   [0,4,8],
+  'sus2':  [0,2,7],
+  'sus4':  [0,5,7],
+  '9':     [0,4,7,10,14],
+  'm9':    [0,3,7,10,14],
+  'M9':    [0,4,7,11,14],
+  'm7b5':  [0,3,6,10],
+  'add9':  [0,4,7,14],
+  '6':     [0,4,7,9],
+  'm6':    [0,3,7,9],
+};
+
+function parseChordName(name) {
+  name = name.trim();
+  if (!name) return null;
+  // スラッシュコード
+  let bass = null;
+  if (name.includes('/')) {
+    const parts = name.split('/');
+    name = parts[0];
+    bass = parts[1];
+  }
+  // ルート音
+  let root = null, quality = '';
+  const noteRe = /^([A-G][#b]?)/;
+  const m = name.match(noteRe);
+  if (!m) return null;
+  root = m[1];
+  if (!(root in NOTE_MAP)) return null;
+  quality = name.slice(root.length);
+  // maj→M7など正規化
+  quality = quality.replace(/^maj7$/,'M7').replace(/^maj9$/,'M9').replace(/^maj$/,'');
+  const tones = CHORD_TONES[quality] || CHORD_TONES[''];
+  return { root, rootMidi: NOTE_MAP[root], quality, tones, bassNote: bass };
+}
+
+function parseChordsText(text) {
+  const tokens = text.split(/[\s,\n]+/).filter(t => t.length > 0);
+  const chords = [];
+  const errors = [];
+  tokens.forEach(t => {
+    const c = parseChordName(t);
+    if (c) chords.push({ ...c, name: t });
+    else errors.push(t);
+  });
+  return { chords, errors };
+}
+
+// ==================== スケール定義 ====================
+const SCALE_INTERVALS = {
+  major:      [0,2,4,5,7,9,11],
+  minor:      [0,2,3,5,7,8,10],
+  dorian:     [0,2,3,5,7,9,10],
+  mixolydian: [0,2,4,5,7,9,10],
+};
+const SCALE_QUALITIES = {
+  major:      ['','m','m','','','m','dim'],
+  minor:      ['m','dim','','m','m','',''],
+  dorian:     ['m','m','','','m','dim',''],
+  mixolydian: ['','m','dim','','m','m',''],
+};
+const SCALE_QUALITIES_7 = {
+  major:      ['M7','m7','m7','M7','7','m7','m7b5'],
+  minor:      ['m7','m7b5','M7','m7','m7','M7','7'],
+  dorian:     ['m7','m7','M7','7','m7','m7b5','M7'],
+  mixolydian: ['7','m7','m7b5','M7','m7','m7','M7'],
+};
+const DEGREE_NAMES = ['I','II','III','IV','V','VI','VII'];
+
+// ==================== UI State ====================
+let selectedNote = '';
+let selectedQuality = '';
+let chordList = [];
+let midiChords = [];
+let activeTab = 'text';
+let showExt = false;
+
+// グリッド: [{chordName, rootMidi, quality, tones, durationEighths, color}]
+// 1小節 = 8 eighths
+const GRID_BARS = 2; // 初期小節数
+const CELL_W = 40;   // px per eighth note
+const NOTE_COLORS = ['#e8ff47','#7f6fff','#47ffb0','#ffb347','#ff6b9d','#47d4ff','#ff9f47'];
+let gridBlocks = []; // {chord, startEighth, durationEighths, color}
+let totalGridEighths = GRID_BARS * 8;
+
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>{
+    b.classList.toggle('active', ['text','button','midi'][i]===tab);
+  });
+  document.querySelectorAll('.tab-content').forEach((c,i)=>{
+    c.classList.toggle('active', ['tab-text','tab-button','tab-midi'][i]==='tab-'+tab);
+  });
+  if (tab === 'button') {
+    renderPalette();
+    renderGrid();
+  }
+}
+
+// ==================== パレット ====================
+function renderPalette() {
+  const key = document.getElementById('scale-key').value;
+  const type = document.getElementById('scale-type').value;
+  const intervals = SCALE_INTERVALS[type];
+  const qualities = showExt ? SCALE_QUALITIES_7[type] : SCALE_QUALITIES[type];
+  const rootMidi = NOTE_MAP[key];
+  const palette = document.getElementById('chord-palette');
+
+  palette.innerHTML = intervals.map((interval, i) => {
+    const noteMidi = (rootMidi + interval) % 12;
+    const noteName = Object.keys(NOTE_MAP).find(k => NOTE_MAP[k] === noteMidi && !k.includes('b')) || key;
+    const q = qualities[i];
+    const name = noteName + q;
+    const color = NOTE_COLORS[i % NOTE_COLORS.length];
+    return `<div class="palette-card" draggable="true"
+      style="color:${color};border-color:${color}33;"
+      data-chord="${name}" data-color="${color}"
+      ondragstart="paletteDragStart(event,'${name}','${color}')"
+      onclick="quickAddToGrid('${name}','${color}')">
+      <span style="color:${color}">${name}</span>
+      <span class="degree">${DEGREE_NAMES[i]}</span>
+    </div>`;
+  }).join('');
+}
+
+function toggleExt() {
+  showExt = !showExt;
+  const btn = document.getElementById('ext-toggle');
+  btn.textContent = showExt ? '7th OFF' : '7th ON';
+  btn.style.borderColor = showExt ? 'var(--accent)' : '';
+  btn.style.color = showExt ? 'var(--accent)' : '';
+  renderPalette();
+}
+
+// ==================== グリッド ====================
+function renderGrid() {
+  const grid = document.getElementById('chord-grid');
+  const ruler = document.getElementById('grid-ruler');
+  const totalW = totalGridEighths * CELL_W;
+
+  // 背景セル（1行）
+  let cells = '';
+  for (let i = 0; i < totalGridEighths; i++) {
+    const isBarStart = i % 8 === 0;
+    cells += `<div class="grid-cell${isBarStart?' bar-start':''}"></div>`;
+  }
+
+  grid.style.width = totalW + 'px';
+  grid.style.height = '44px';
+  grid.style.position = 'relative';
+  grid.style.display = 'flex';
+  grid.style.borderTop = '1px solid var(--border)';
+  grid.style.borderBottom = '1px solid var(--border)';
+  grid.style.background = 'var(--bg3)';
+  grid.innerHTML = `
+    <div style="display:flex;width:100%;height:100%;position:absolute;top:0;left:0;">${cells}</div>
+    <div id="grid-drop-zone" class="grid-drop-target"
+      ondragover="gridDragOver(event)"
+      ondragleave="gridDragLeave(event)"
+      ondrop="gridDrop(event)"></div>
+  `;
+
+  // ブロック描画
+  gridBlocks.forEach((b, i) => {
+    const el = document.createElement('div');
+    el.className = 'grid-block';
+    el.style.left = (b.startEighth * CELL_W) + 'px';
+    el.style.width = (b.durationEighths * CELL_W - 2) + 'px';
+    el.style.background = b.color;
+    el.style.zIndex = 2;
+    el.innerHTML = `
+      <span class="grid-block-name">${b.chord.name}</span>
+      <div class="grid-block-resize" onmousedown="startResize(event,${i})"></div>
+      <div class="grid-block-remove" onclick="removeBlock(${i})">×</div>
+    `;
+    el.addEventListener('mousedown', e => {
+      if (e.target.classList.contains('grid-block-resize') || e.target.classList.contains('grid-block-remove')) return;
+      startBlockDrag(e, i);
+    });
+    grid.appendChild(el);
+  });
+
+  // ルーラー
+  ruler.innerHTML = '';
+  ruler.style.width = totalW + 'px';
+  for (let bar = 0; bar < totalGridEighths / 8; bar++) {
+    const div = document.createElement('div');
+    div.style.cssText = `width:${CELL_W*8}px;flex-shrink:0;padding-left:4px;`;
+    div.textContent = `小節${bar+1}`;
+    ruler.appendChild(div);
+  }
+}
+
+function addGridBar() {
+  totalGridEighths += 8;
+  renderGrid();
+}
+
+function clearGrid() {
+  gridBlocks = [];
+  renderGrid();
+}
+
+// パレット → グリッドへD&D
+let dragChordName = '';
+let dragChordColor = '';
+function paletteDragStart(e, name, color) {
+  dragChordName = name;
+  dragChordColor = color;
+  e.dataTransfer.effectAllowed = 'copy';
+}
+
+function gridDragOver(e) {
+  e.preventDefault();
+  e.currentTarget.classList.add('drag-over');
+}
+
+function gridDragLeave(e) {
+  e.currentTarget.classList.remove('drag-over');
+}
+
+function gridDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  if (!dragChordName) return;
+  const grid = document.getElementById('chord-grid');
+  const rect = grid.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const startEighth = Math.max(0, Math.min(Math.floor(x / CELL_W), totalGridEighths - 1));
+  placeBlock(dragChordName, dragChordColor, startEighth, 2);
+  dragChordName = '';
+}
+
+function quickAddToGrid(name, color) {
+  // 空いている最後尾に追加
+  const lastEnd = gridBlocks.length > 0
+    ? Math.max(...gridBlocks.map(b => b.startEighth + b.durationEighths))
+    : 0;
+  if (lastEnd >= totalGridEighths) addGridBar();
+  placeBlock(name, color, lastEnd, 2);
+}
+
+function placeBlock(name, color, startEighth, dur) {
+  const chord = parseChordName(name);
+  if (!chord) return;
+  chord.name = name;
+  // 重なりチェック: 既存ブロックと重なる場合は短くする
+  let d = dur;
+  for (const b of gridBlocks) {
+    if (startEighth < b.startEighth + b.durationEighths && startEighth + d > b.startEighth) {
+      d = Math.max(1, b.startEighth - startEighth);
+    }
+  }
+  if (startEighth + d > totalGridEighths) d = totalGridEighths - startEighth;
+  if (d < 1) return;
+  gridBlocks.push({ chord, startEighth, durationEighths: d, color });
+  gridBlocks.sort((a, b) => a.startEighth - b.startEighth);
+  renderGrid();
+}
+
+function removeBlock(i) {
+  gridBlocks.splice(i, 1);
+  renderGrid();
+}
+
+// ブロック移動
+let dragBlockIdx = -1, dragBlockOffsetX = 0;
+function startBlockDrag(e, idx) {
+  dragBlockIdx = idx;
+  const grid = document.getElementById('chord-grid');
+  const rect = grid.getBoundingClientRect();
+  const block = gridBlocks[idx];
+  dragBlockOffsetX = e.clientX - rect.left - block.startEighth * CELL_W;
+
+  const onMove = ev => {
+    const x = ev.clientX - rect.left - dragBlockOffsetX;
+    const newStart = Math.max(0, Math.min(Math.round(x / CELL_W), totalGridEighths - block.durationEighths));
+    gridBlocks[idx].startEighth = newStart;
+    renderGrid();
+  };
+  const onUp = () => {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    gridBlocks.sort((a,b) => a.startEighth - b.startEighth);
+    renderGrid();
+  };
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+// リサイズ
+function startResize(e, idx) {
+  e.stopPropagation();
+  const grid = document.getElementById('chord-grid');
+  const rect = grid.getBoundingClientRect();
+  const block = gridBlocks[idx];
+
+  const onMove = ev => {
+    const x = ev.clientX - rect.left;
+    const newDur = Math.max(1, Math.round((x - block.startEighth * CELL_W) / CELL_W));
+    const maxDur = totalGridEighths - block.startEighth;
+    gridBlocks[idx].durationEighths = Math.min(newDur, maxDur);
+    renderGrid();
+  };
+  const onUp = () => {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+  };
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+function selectNote(el, note) {
+  selectedNote = note;
+}
+
+function selectQuality(el, q) {
+  selectedQuality = q;
+}
+
+function addChordFromButton() {}
+function renderChordList() {}
+function removeChord(i) {}
+
+// ドラッグ&ドロップ
+const uploadArea = document.getElementById('upload-area');
+uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.style.borderColor='var(--accent)'; });
+uploadArea.addEventListener('dragleave', () => { uploadArea.style.borderColor=''; });
+uploadArea.addEventListener('drop', e => { e.preventDefault(); uploadArea.style.borderColor=''; if(e.dataTransfer.files[0]) processMidiFile(e.dataTransfer.files[0]); });
+
+function handleMidiUpload(evt) {
+  const f = evt.target.files[0];
+  if (f) processMidiFile(f);
+}
+
+function processMidiFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const chords = parseMidiChords(data);
+      midiChords = chords;
+      uploadArea.classList.add('has-file');
+      document.getElementById('midi-status').textContent =
+        `✓ ${file.name} — ${chords.length} コード検出: ${chords.map(c=>c.name).join(', ')}`;
+    } catch(err) {
+      document.getElementById('midi-status').textContent = '解析エラー: ' + err.message;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// MIDI解析: Format 0/1 対応 + 全トラック統合 + 転回形検出
+function parseMidiChords(data) {
+  if (data[0]!==0x4D||data[1]!==0x54||data[2]!==0x68||data[3]!==0x6B) throw new Error('MIDIファイルではありません');
+  const format = (data[8]<<8)|data[9];
+  const numTracks = (data[10]<<8)|data[11];
+  const ticksPerBeat = (data[12]<<8)|data[13];
+
+  // 全トラックのノートオンを tick -> Set(note%12) にまとめる
+  const notesOnByTick = {};
+  let pos = 14;
+
+  for (let tr = 0; tr < numTracks; tr++) {
+    while (pos < data.length - 8) {
+      if (data[pos]===0x4D&&data[pos+1]===0x54&&data[pos+2]===0x72&&data[pos+3]===0x6B) break;
+      pos++;
+    }
+    if (pos >= data.length - 8) break;
+    pos += 4;
+    const trackLen = (data[pos]<<24)|(data[pos+1]<<16)|(data[pos+2]<<8)|data[pos+3];
+    pos += 4;
+    const end = pos + trackLen;
+    let tick = 0, lastStatus = 0;
+
+    while (pos < end) {
+      let delta = 0, b;
+      do { b = data[pos++]; delta = (delta<<7)|(b&0x7F); } while (b & 0x80);
+      tick += delta;
+
+      let status = data[pos];
+      if (status & 0x80) { lastStatus = status; pos++; }
+      else { status = lastStatus; }
+
+      const type = status & 0xF0;
+      if (type === 0x90 || type === 0x80) {
+        const note = data[pos++], vel = data[pos++];
+        if (type === 0x90 && vel > 0) {
+          if (!notesOnByTick[tick]) notesOnByTick[tick] = new Set();
+          notesOnByTick[tick].add(note % 12);
+        }
+      } else if (type === 0xA0 || type === 0xB0 || type === 0xE0) pos += 2;
+      else if (type === 0xC0 || type === 0xD0) pos++;
+      else if (status === 0xFF) { const mt = data[pos++]; const ml = data[pos++]; pos += ml; }
+      else if (status === 0xF0 || status === 0xF7) { while (pos < end && data[pos++] !== 0xF7); }
+      else pos++;
+    }
+    pos = end;
+  }
+
+  // tick → 小節単位にグルーピング（コード変化点のみ抽出）
+  const barTicks = ticksPerBeat * 4;
+  const barNotes = {};
+  Object.keys(notesOnByTick).map(Number).sort((a,b)=>a-b).forEach(tick => {
+    const bar = Math.floor(tick / barTicks);
+    if (!barNotes[bar]) barNotes[bar] = new Set();
+    notesOnByTick[tick].forEach(n => barNotes[bar].add(n));
+  });
+
+  // 各小節のノート群からコード推定（転回形対応）
+  const result = [];
+  let prevName = '';
+  Object.keys(barNotes).map(Number).sort((a,b)=>a-b).forEach(bar => {
+    const notes = [...barNotes[bar]].sort((a,b)=>a-b);
+    if (notes.length < 2) return;
+    const { rootMidi, quality } = identifyChord(notes);
+    const rootName = Object.keys(NOTE_MAP).find(k => NOTE_MAP[k] === rootMidi && !k.includes('b')) || 'C';
+    const name = rootName + quality;
+    if (name === prevName) return; // 同じコードは重複除去
+    prevName = name;
+    result.push({ rootMidi, root: rootName, quality, tones: CHORD_TONES[quality] || CHORD_TONES[''], name });
+  });
+
+  if (result.length === 0) throw new Error('コードを検出できませんでした（ノート数が少ない可能性があります）');
+  return result.slice(0, 64);
+}
+
+// 転回形を含む全候補からコードを識別
+function identifyChord(pcSet) {
+  const QUALITY_INTERVALS = {
+    '':    [0,4,7], 'm':   [0,3,7], '7':   [0,4,7,10], 'M7':  [0,4,7,11],
+    'm7':  [0,3,7,10], 'mM7': [0,3,7,11], 'dim': [0,3,6], 'aug': [0,4,8],
+    'sus2':[0,2,7], 'sus4':[0,5,7], 'm7b5':[0,3,6,10], 'dim7':[0,3,6,9],
+  };
+  // 全12根音 × 全クオリティで照合
+  let best = null, bestScore = -1;
+  for (let root = 0; root < 12; root++) {
+    for (const [q, pattern] of Object.entries(QUALITY_INTERVALS)) {
+      const patternSet = new Set(pattern);
+      // 一致スコア: pcSetの音がpatternに含まれる数 / patternの音数
+      let matched = 0;
+      for (const n of pcSet) {
+        if (patternSet.has((n - root + 12) % 12)) matched++;
+      }
+      const coverage = matched / pattern.length;
+      const score = coverage + (matched === pcSet.length ? 0.1 : 0); // 完全一致ボーナス
+      if (score > bestScore) {
+        bestScore = score;
+        best = { rootMidi: root, quality: q };
+      }
+    }
+  }
+  return best || { rootMidi: pcSet[0], quality: '' };
+}
+
+function guessQuality(intervals) {
+  const s = intervals.join(',');
+  if (s==='0,4,7,11') return 'M7';
+  if (s==='0,4,7,10') return '7';
+  if (s==='0,3,7,10') return 'm7';
+  if (s==='0,3,7') return 'm';
+  if (s==='0,4,7') return '';
+  if (s==='0,3,6') return 'dim';
+  if (s==='0,4,8') return 'aug';
+  if (s==='0,2,7') return 'sus2';
+  if (s==='0,5,7') return 'sus4';
+  return '';
+}
+
+// ==================== MIDI生成 ====================
+// chordEntry: { chord, durationTicks }
+function getActiveChordEntries(tpb) {
+  const eighth = tpb / 2;
+  if (activeTab === 'text') {
+    const text = document.getElementById('chord-text').value;
+    const { chords, errors } = parseChordsText(text);
+    if (errors.length) {
+      const el = document.getElementById('text-error');
+      el.textContent = '認識できなかったコード: ' + errors.join(', ');
+      el.classList.add('visible');
+    }
+    return chords.map(c => ({ chord: c, durationTicks: tpb * 4 }));
+  } else if (activeTab === 'button') {
+    if (gridBlocks.length === 0) return [];
+    return gridBlocks.map(b => ({ chord: b.chord, durationTicks: b.durationEighths * eighth, durationEighths: b.durationEighths }));
+  } else {
+    return midiChords.map(c => ({ chord: c, durationTicks: tpb * 4 }));
+  }
+}
+
+// VLQ書き込み
+function writeVLQ(val) {
+  const bytes = [];
+  bytes.unshift(val & 0x7F);
+  val >>= 7;
+  while (val > 0) { bytes.unshift((val & 0x7F) | 0x80); val >>= 7; }
+  return bytes;
+}
+
+function writeUint32(val) {
+  return [(val>>24)&0xFF,(val>>16)&0xFF,(val>>8)&0xFF,val&0xFF];
+}
+
+function writeUint16(val) { return [(val>>8)&0xFF, val&0xFF]; }
+
+function midiTrack(events) {
+  const data = [];
+  events.forEach(e => {
+    writeVLQ(e.delta).forEach(b => data.push(b));
+    e.bytes.forEach(b => data.push(b));
+  });
+  // End of Track
+  data.push(0x00, 0xFF, 0x2F, 0x00);
+  return data;
+}
+
+function buildMidiFile(tracks, bpm, tpb) {
+  const header = [
+    0x4D,0x54,0x68,0x64, 0,0,0,6,
+    ...writeUint16(tracks.length > 1 ? 1 : 0),
+    ...writeUint16(tracks.length),
+    ...writeUint16(tpb)
+  ];
+  const body = [];
+  tracks.forEach(t => {
+    const td = midiTrack(t);
+    body.push(0x4D,0x54,0x72,0x6B, ...writeUint32(td.length), ...td);
+  });
+  return new Uint8Array([...header, ...body]);
+}
+
+function noteOn(ch, note, vel, delta=0) {
+  return { delta, bytes: [0x90|ch, note&0x7F, vel] };
+}
+
+function noteOff(ch, note, delta=0) {
+  return { delta, bytes: [0x80|ch, note&0x7F, 0] };
+}
+
+function tempoEvent(bpm) {
+  const us = Math.round(60000000 / bpm);
+  return { delta:0, bytes:[0xFF,0x51,0x03,(us>>16)&0xFF,(us>>8)&0xFF,us&0xFF] };
+}
+
+function progChange(ch, prog, delta=0) {
+  return { delta, bytes:[0xC0|ch, prog&0x7F] };
+}
+
+// コードトーン取得（ボイシング付き）
+function getVoicing(chord, style, octave=5) {
+  const root = chord.rootMidi + octave*12;
+  const tones = chord.tones.map(t => {
+    let n = root + t;
+    if (n > 84) n -= 12;
+    return n;
+  });
+  if (style === 'open' && tones.length >= 3) {
+    return [tones[0], tones[1]+12, tones[2], tones.length>3?tones[3]:tones[1]+12];
+  }
+  return tones;
+}
+
+// ギターカッティングパターン生成
+function generateGuitarTrack(entries, tpb, pattern, voicingStyle, bpm) {
+  const events = [tempoEvent(bpm), progChange(0, 25)];
+  const sixteenth = tpb / 4;
+  const eighth = tpb / 2;
+
+  entries.forEach(({ chord, durationTicks }) => {
+    const notes = getVoicing(chord, voicingStyle, 4);
+    const totalTicks = durationTicks;
+    const numEighths = Math.round(totalTicks / eighth);
+    const numSixteenths = Math.round(totalTicks / sixteenth);
+    const numBeats = Math.round(totalTicks / tpb);
+
+    let hits = [];
+    if (pattern === 'straight') {
+      for (let i=0; i<numSixteenths; i++)
+        hits.push({ tick: i*sixteenth, vel: i%2===0?80:60, dur: sixteenth-4 });
+    } else if (pattern === 'soul') {
+      for (let i=0; i<numEighths; i++)
+        hits.push({ tick: i*eighth, vel: i%2===0?85:65, dur: eighth-4 });
+    } else if (pattern === 'funk') {
+      const funkPat = [1,0,1,1,0,1,0,1,1,0,1,0,1,1,0,1];
+      for (let i=0; i<numSixteenths; i++)
+        hits.push({ tick: i*sixteenth, vel: funkPat[i%16]?78:35, dur: sixteenth-4 });
+    } else if (pattern === 'bossa') {
+      const bossaPat = [0,0,1,0,1,0,1,1,0,1,0,1,0,1,0,0];
+      for (let i=0; i<numSixteenths; i++)
+        if (bossaPat[i%16]) hits.push({ tick: i*sixteenth, vel: 72, dur: sixteenth-4 });
+    } else {
+      for (let i=0; i<numBeats; i++)
+        hits.push({ tick: i*tpb, vel: i%4===0?82:65, dur: tpb-8 });
+    }
+
+    let cursor = 0;
+    hits.forEach(h => {
+      const delta = h.tick - cursor;
+      notes.forEach((n,ni) => events.push(noteOn(0,n,ni===0?h.vel:Math.min(h.vel+10,127),ni===0?delta:0)));
+      cursor = h.tick;
+      notes.forEach((n,ni) => events.push(noteOff(0,n,ni===0?h.dur:0)));
+      cursor += h.dur;
+    });
+
+    const remaining = totalTicks - cursor;
+    if (remaining > 0 && events.length > 0) events[events.length-1].delta += remaining;
+  });
+
+  return events;
+}
+
+// ベースルート生成
+function generateBassRootTrack(entries, tpb, bpm) {
+  const events = [tempoEvent(bpm), progChange(1, 33)];
+
+  entries.forEach(({ chord, durationTicks }) => {
+    const root = chord.rootMidi + 2*12;
+    const numBeats = Math.round(durationTicks / tpb);
+    let cursor = 0;
+    for (let i=0; i<numBeats; i++) {
+      const vel = i%4===0 ? 95 : (i%2===0 ? 80 : 70);
+      const dur = tpb - 8;
+      events.push(noteOn(1, root, vel, i===0?0:tpb-dur));
+      events.push(noteOff(1, root, dur));
+      cursor += tpb;
+    }
+    const rem = durationTicks - cursor;
+    if (rem > 0 && events.length > 0) events[events.length-1].delta += rem;
+  });
+
+  return events;
+}
+
+// ベースオクターブ奏法
+function generateBassOctaveTrack(entries, tpb, style, bpm) {
+  const events = [tempoEvent(bpm), progChange(2, 33)];
+  const sixteenth = tpb / 4;
+
+  entries.forEach(({ chord, durationTicks }) => {
+    const root = chord.rootMidi + 2*12;
+    const oct = root + 12;
+    const numBars = Math.max(1, Math.round(durationTicks / (tpb * 4)));
+    let cursor = 0;
+
+    for (let b=0; b<numBars; b++) {
+      let hits = [];
+      if (style === 'standard') {
+        hits = [
+          {n:root,vel:95,dur:sixteenth*3-4},{n:oct,vel:80,dur:sixteenth-4},
+          {n:root,vel:90,dur:sixteenth*3-4},{n:oct,vel:75,dur:sixteenth-4},
+          {n:root,vel:92,dur:sixteenth*2-4},{n:root,vel:85,dur:sixteenth*2-4},
+          {n:oct,vel:78,dur:sixteenth-4},{n:root,vel:88,dur:sixteenth-4},
+        ];
+      } else if (style === 'muted') {
+        hits = [
+          {n:root,vel:95,dur:sixteenth-4},{n:root,vel:40,dur:sixteenth-4},
+          {n:oct,vel:80,dur:sixteenth-4},{n:root,vel:40,dur:sixteenth-4},
+          {n:root,vel:90,dur:sixteenth-4},{n:root,vel:40,dur:sixteenth-4},
+          {n:oct,vel:75,dur:sixteenth-4},{n:root,vel:40,dur:sixteenth-4},
+        ];
+      } else {
+        hits = [
+          {n:root,vel:95,dur:tpb-4},{n:oct,vel:82,dur:tpb/2-4},
+          {n:root,vel:88,dur:tpb/2-4},{n:root,vel:85,dur:tpb-4},
+          {n:oct,vel:78,dur:tpb/2-4},{n:oct+2,vel:72,dur:sixteenth-4},
+          {n:oct,vel:75,dur:sixteenth*3-4},
+        ];
+      }
+      hits.forEach(h => {
+        events.push(noteOn(2,h.n,h.vel,0));
+        events.push(noteOff(2,h.n,h.dur));
+        cursor += h.dur + 4;
+      });
+    }
+    const rem = durationTicks - cursor;
+    if (rem > 0 && events.length > 0) events[events.length-1].delta += Math.max(0, rem);
+  });
+
+  return events;
+}
+
+// ストリングス カウンターメロディ
+function generateStringsTrack(entries, tpb, voicingStyle, bpm) {
+  const events = [tempoEvent(bpm), progChange(3, 48)];
+
+  entries.forEach(({ chord, durationTicks }) => {
+    const root = chord.rootMidi + 5*12;
+    const tones = chord.tones.map(t => {
+      let n = root + t;
+      while (n > 84) n -= 12;
+      while (n < 60) n += 12;
+      return n;
+    });
+
+    let selected = [];
+    if (voicingStyle === 'spread') {
+      selected = tones.length >= 3 ? [tones[0], tones[1]+7, tones[2]+14].filter(n=>n<=96) : tones;
+    } else if (voicingStyle === 'close') {
+      selected = tones.slice(0,3);
+    } else {
+      selected = [tones[tones.length-1]];
+    }
+
+    if (selected.length > 0) {
+      const dur = durationTicks - 8;
+      selected.forEach((n,ni) => events.push(noteOn(3,n,72-ni*6,0)));
+      selected.forEach((n,ni) => events.push(noteOff(3,n,ni===0?dur:0)));
+      events.push({ delta:8, bytes:[0x00] });
+    } else {
+      events.push({ delta: durationTicks, bytes:[0x00] });
+    }
+  });
+
+  return events;
+}
+
+// ==================== 生成エントリ ====================
+function generate() {
+  const tpb = 480;
+  const entries = getActiveChordEntries(tpb);
+  if (!entries || entries.length === 0) {
+    alert('コードを入力してください');
+    return;
+  }
+
+  const bpm = parseInt(document.getElementById('bpm').value) || 120;
+  const cutPattern = document.getElementById('cut-pattern').value;
+  const guitarVoicing = document.getElementById('guitar-voicing').value;
+  const octStyle = document.getElementById('oct-style').value;
+  const strVoicing = document.getElementById('str-voicing').value;
+  const outFormat = document.getElementById('out-format').value;
+
+  const useGuitar = document.getElementById('tr-guitar').checked;
+  const useBassRoot = document.getElementById('tr-bass-root').checked;
+  const useBassOct = document.getElementById('tr-bass-oct').checked;
+  const useStrings = document.getElementById('tr-strings').checked;
+  const useDrums = document.getElementById('tr-drums').checked;
+
+  const tracks = [];
+  const trackMeta = [];
+
+  if (useGuitar) {
+    tracks.push(generateGuitarTrack(entries, tpb, cutPattern, guitarVoicing, bpm));
+    trackMeta.push({ name:'Guitar Backing', color:'#ffb347', cls:'guitar' });
+  }
+  if (useBassRoot) {
+    tracks.push(generateBassRootTrack(entries, tpb, bpm));
+    trackMeta.push({ name:'Bass Root', color:'#7f6fff', cls:'bass' });
+  }
+  if (useBassOct) {
+    tracks.push(generateBassOctaveTrack(entries, tpb, octStyle, bpm));
+    trackMeta.push({ name:'Bass Octave', color:'#e8ff47', cls:'oct' });
+  }
+  if (useStrings) {
+    tracks.push(generateStringsTrack(entries, tpb, strVoicing, bpm));
+    trackMeta.push({ name:'Strings Counter', color:'#47ffb0', cls:'strings' });
+  }
+  if (useDrums) {
+    tracks.push(generateDrumTrack(bpm, tpb));
+    trackMeta.push({ name:'Drums', color:'#ff6b6b', cls:'drums' });
+  }
+
+  if (tracks.length === 0) { alert('トラックを選択してください'); return; }
+
+  const dlSection = document.getElementById('dl-btns');
+  dlSection.innerHTML = '';
+
+  if (outFormat === 'multi' || outFormat === 'both') {
+    const midi = buildMidiFile(tracks, bpm, tpb);
+    const blob = new Blob([midi], {type:'audio/midi'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'backing_multi.mid';
+    const btn = document.createElement('button');
+    btn.className = 'dl-btn';
+    btn.textContent = '↓ マルチトラック .mid';
+    btn.onclick = () => a.click();
+    dlSection.appendChild(btn);
+  }
+
+  if (outFormat === 'split' || outFormat === 'both') {
+    tracks.forEach((t, i) => {
+      const midi = buildMidiFile([t], bpm, tpb);
+      const blob = new Blob([midi], {type:'audio/midi'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `${trackMeta[i].name.replace(/\s/g,'_')}.mid`;
+      const btn = document.createElement('button');
+      btn.className = 'dl-btn';
+      btn.textContent = `↓ ${trackMeta[i].name}`;
+      btn.onclick = () => a.click();
+      dlSection.appendChild(btn);
+    });
+  }
+
+  // プレビュー
+  const chords = entries.map(e => e.chord);
+  const prevList = document.getElementById('track-preview-list');
+  prevList.innerHTML = trackMeta.map((tm, i) => {
+    const notes = generatePreviewNotes(entries, trackMeta[i].cls);
+    return `<div class="track-preview-item">
+      <div class="tp-name" style="color:${tm.color}">${tm.name}</div>
+      <div class="piano-roll">${notes}</div>
+    </div>`;
+  }).join('');
+
+  const totalTicks = entries.reduce((s,e) => s + e.durationTicks, 0);
+  const totalBars = (totalTicks / (tpb * 4)).toFixed(1);
+  const durSec = (totalTicks / tpb * 60 / (parseInt(document.getElementById('bpm').value)||120)).toFixed(1);
+  document.getElementById('status-bar').innerHTML = `
+    <span><span class="status-dot ok"></span>${entries.length} コード</span>
+    <span><span class="status-dot ok"></span>${totalBars} 小節</span>
+    <span><span class="status-dot ok"></span>${durSec} 秒</span>
+    <span><span class="status-dot ok"></span>${tracks.length} トラック生成</span>
+  `;
+  document.getElementById('preview-section').classList.add('visible');
+}
+
+function generatePreviewNotes(entries, cls) {
+  const total = entries.reduce((s,e) => s + (e.durationEighths || Math.round(e.durationTicks / 240)), 0) || 1;
+  let offset = 0;
+  return entries.map(({ chord, durationTicks, durationEighths }) => {
+    const dur = durationEighths || Math.round(durationTicks / 240) || 2;
+    const x = (offset / total) * 100;
+    const w = (dur / total) * 100;
+    offset += dur;
+    if (cls === 'guitar') {
+      return Array.from({length:4},(_,i)=>`<div class="pr-note" style="left:${x+i*(w/4)}%;width:${Math.max(0.5,w/5)}%;top:${40+Math.sin(i)*10}%;"></div>`).join('');
+    } else if (cls === 'bass') {
+      return `<div class="pr-note bass" style="left:${x}%;width:${w*0.92}%;top:55%;height:6px;"></div>`;
+    } else if (cls === 'oct') {
+      return [0,0.45,0.65].map(o=>`<div class="pr-note oct" style="left:${x+o*w}%;width:${Math.max(0.5,w*0.28)}%;top:${o===0?45:65}%;"></div>`).join('');
+    } else if (cls === 'strings') {
+      return `<div class="pr-note strings" style="left:${x}%;width:${w*0.95}%;top:25%;height:5px;opacity:0.7;"></div>`;
+    } else {
+      // drums: show step pattern from first 2 parts
+      return drumSteps.slice(0,2).map((steps, pi) =>
+        steps.map((vel, si) => vel > 0
+          ? `<div class="pr-note" style="left:${si/16*100}%;width:4%;top:${20+pi*30}%;height:6px;background:${getPartColor(pi)};border-radius:1px;"></div>`
+          : ''
+        ).join('')
+      ).join('');
+    }
+  }).join('');
+}
+
+// ==================== ドラム ====================
+// GM ノート番号
+const DRUM_PARTS = [
+  { id:'kick',    label:'Kick',    note:36 },
+  { id:'snare',   label:'Snare',   note:38 },
+  { id:'hihat_c', label:'HH Cl',   note:42 },
+  { id:'hihat_o', label:'HH Op',   note:46 },
+  { id:'clap',    label:'Clap',    note:39 },
+  { id:'ride',    label:'Ride',    note:51 },
+  { id:'crash',   label:'Crash',   note:49 },
+];
+
+// ステップ数は常に16（1小節）。小節数は drum-bars で指定してループ
+const DRUM_STEPS = 16;
+
+// steps[partIdx][stepIdx] = velocity (0=off, 1-127=on)
+let drumSteps = DRUM_PARTS.map(() => new Array(DRUM_STEPS).fill(0));
+
+// プリセット定義 (16ステップ、各パートのvelocity配列 0=off)
+// kick=0 snare=1 hihat_c=2 hihat_o=3 clap=4 ride=5 crash=6
+const DRUM_PRESETS = {
+  '8ビート': [
+    [100,0,0,0, 0,0,0,0, 100,0,0,0, 0,0,0,0], // kick
+    [0,0,0,0, 100,0,0,0, 0,0,0,0, 100,0,0,0], // snare
+    [80,0,80,0, 80,0,80,0, 80,0,80,0, 80,0,80,0], // hh cl
+    [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0], // hh op
+    [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0], // clap
+    [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0], // ride
+    [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0], // crash
+  ],
+  '16ビート': [
+    [100,0,0,0, 0,0,100,0, 0,0,0,0, 100,0,0,0], // kick
+    [0,0,0,0, 100,0,0,0, 0,0,0,0, 100,0,0,0], // snare
+    [80,60,80,60, 80,60,80,60, 80,60,80,60, 80,60,80,60], // hh cl
+    [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+  ],
+  'ファンク': [
+    [100,0,0,60, 0,0,80,0, 0,100,0,0, 0,0,70,0], // kick
+    [0,0,0,0, 90,0,0,40, 0,0,0,0, 90,0,0,0], // snare
+    [70,50,70,50, 70,50,70,50, 70,50,70,50, 70,50,70,50], // hh cl
+    [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,80], // hh op
+    [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+  ],
+  'ロック': [
+    [100,0,0,0, 0,0,0,0, 100,0,100,0, 0,0,0,0], // kick
+    [0,0,0,0, 100,0,0,0, 0,0,0,0, 100,0,0,0], // snare
+    [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    [80,0,80,0, 80,0,80,0, 80,0,80,0, 80,0,80,0], // ride
+    [90,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0], // crash
+  ],
+  'シャッフル': [
+    [100,0,0, 0,0,0, 100,0,0, 0,0,0], // kick (12step)
+    [0,0,0, 0,100,0, 0,0,0, 0,100,0], // snare
+    [80,0,60, 80,0,60, 80,0,60, 80,0,60], // hh cl
+    [0,0,0, 0,0,0, 0,0,0, 0,0,0],
+    [0,0,0, 0,0,0, 0,0,0, 0,0,0],
+    [0,0,0, 0,0,0, 0,0,0, 0,0,0],
+    [0,0,0, 0,0,0, 0,0,0, 0,0,0],
+  ],
+  'Hip-hop': [
+    [100,0,0,0, 0,0,0,0, 0,0,100,0, 0,0,0,80], // kick
+    [0,0,0,0, 0,0,100,0, 0,0,0,0, 0,0,100,0], // snare
+    [60,0,60,0, 60,0,60,0, 60,0,60,0, 60,0,60,0], // hh cl
+    [0,0,0,0, 0,0,0,80, 0,0,0,0, 0,0,0,0], // hh op
+    [0,0,0,0, 90,0,0,0, 0,0,0,0, 90,0,0,0], // clap
+    [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+  ],
+  'ボサノバ': [
+    [100,0,0,0, 0,0,80,0, 0,0,0,0, 0,0,0,0], // kick
+    [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    [70,0,70,0, 70,0,70,0, 70,0,70,0, 70,0,70,0], // ride
+    [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+  ],
+  'バラード': [
+    [100,0,0,0, 0,0,0,0, 0,0,80,0, 0,0,0,0], // kick
+    [0,0,0,0, 90,0,0,0, 0,0,0,0, 90,0,0,0], // snare
+    [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    [70,0,70,0, 70,0,70,0, 70,0,70,0, 70,0,70,0], // ride
+    [90,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0], // crash
+  ],
+};
+
+let activePreset = '8ビート';
+
+function initDrums() {
+  // プリセットボタン
+  const presetEl = document.getElementById('drum-presets');
+  presetEl.innerHTML = Object.keys(DRUM_PRESETS).map(name =>
+    `<button class="drum-preset-btn${name===activePreset?' active':''}" onclick="applyDrumPreset('${name}')">${name}</button>`
+  ).join('');
+
+  applyDrumPreset(activePreset, false);
+  renderDrumGrid();
+}
+
+function applyDrumPreset(name, rerender=true) {
+  const preset = DRUM_PRESETS[name];
+  if (!preset) return;
+  activePreset = name;
+  // シャッフルは12ステップなので16に展開
+  const isTriple = preset[0].length === 12;
+  drumSteps = DRUM_PARTS.map((p, pi) => {
+    const src = preset[pi] || [];
+    if (isTriple) {
+      // 12→16: 3拍子を4拍に無理なくマップ
+      return Array.from({length:16}, (_,i) => src[Math.floor(i*12/16)] || 0);
+    }
+    return Array.from({length:DRUM_STEPS}, (_,i) => src[i] || 0);
+  });
+  document.querySelectorAll('.drum-preset-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent === name);
+  });
+  if (rerender) renderDrumGrid();
+}
+
+function renderDrumGrid() {
+  const grid = document.getElementById('drum-grid');
+  grid.innerHTML = DRUM_PARTS.map((part, pi) => {
+    const steps = drumSteps[pi];
+    const stepsHtml = steps.map((vel, si) => {
+      const isOn = vel > 0;
+      const beatStart = si % 4 === 0 ? ' beat-start' : '';
+      return `<button class="step-btn${isOn?' on':''}${beatStart}"
+        data-part="${part.id}" data-pi="${pi}" data-si="${si}"
+        onclick="toggleStep(${pi},${si})"
+        oncontextmenu="cycleVel(event,${pi},${si})"></button>`;
+    }).join('');
+
+    const velsHtml = steps.map((vel, si) => {
+      const h = vel > 0 ? Math.max(2, Math.round(vel / 127 * 16)) : 0;
+      return `<div class="vel-cell" data-pi="${pi}" data-si="${si}"
+        onmousedown="startVelDrag(event,${pi},${si})">
+        <div class="vel-bar" style="height:${h}px;background:${vel>0?getPartColor(pi):'var(--text3)'}"></div>
+      </div>`;
+    }).join('');
+
+    return `<div class="drum-row">
+      <div class="drum-label">${part.label}</div>
+      <div class="drum-steps">${stepsHtml}</div>
+    </div>
+    <div class="drum-row" style="margin-bottom:4px;">
+      <div class="drum-label" style="font-size:9px;color:var(--text3);">vel</div>
+      <div class="vel-wrap" style="display:flex;gap:2px;">${velsHtml}</div>
+    </div>`;
+  }).join('');
+
+  // ルーラー
+  const ruler = document.getElementById('drum-ruler');
+  ruler.innerHTML = Array.from({length:DRUM_STEPS}, (_,i) => {
+    const isBeat = i % 4 === 0;
+    return `<div style="width:24px;flex-shrink:0;text-align:center;color:${isBeat?'var(--text2)':'var(--text3)'};">${isBeat?i/4+1:''}</div>`;
+  }).join('');
+}
+
+function getPartColor(pi) {
+  return ['#ff6b6b','#ffb347','#e8ff47','#c8df27','#ff9f47','#47d4ff','#47ffb0'][pi] || '#888';
+}
+
+function toggleStep(pi, si) {
+  drumSteps[pi][si] = drumSteps[pi][si] > 0 ? 0 : 100;
+  renderDrumGrid();
+}
+
+function cycleVel(e, pi, si) {
+  e.preventDefault();
+  const v = drumSteps[pi][si];
+  if (v === 0) drumSteps[pi][si] = 70;
+  else if (v < 85) drumSteps[pi][si] = 100;
+  else if (v < 110) drumSteps[pi][si] = 127;
+  else drumSteps[pi][si] = 0;
+  renderDrumGrid();
+}
+
+// ベロシティドラッグ
+let velDragPi = -1, velDragSi = -1, velDragStartY = 0, velDragStartV = 0;
+function startVelDrag(e, pi, si) {
+  e.preventDefault();
+  velDragPi = pi; velDragSi = si;
+  velDragStartY = e.clientY;
+  velDragStartV = drumSteps[pi][si] || 0;
+  if (velDragStartV === 0) { drumSteps[pi][si] = 80; velDragStartV = 80; }
+
+  const onMove = ev => {
+    const dy = velDragStartY - ev.clientY;
+    drumSteps[velDragPi][velDragSi] = Math.max(1, Math.min(127, velDragStartV + dy * 2));
+    renderDrumGrid();
+  };
+  const onUp = () => {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+  };
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+// ドラムMIDI生成 (Ch.9 = GM Ch.10)
+function generateDrumTrack(bpm, tpb) {
+  const bars = parseInt(document.getElementById('drum-bars').value) || 2;
+  const stepTicks = tpb / 4; // 16分音符
+  const events = [tempoEvent(bpm), progChange(9, 0)]; // Ch.10
+  const durTicks = stepTicks - 4;
+
+  for (let bar = 0; bar < bars; bar++) {
+    const barOffset = bar * DRUM_STEPS * stepTicks;
+    DRUM_PARTS.forEach((part, pi) => {
+      drumSteps[pi].forEach((vel, si) => {
+        if (vel <= 0) return;
+        const tick = barOffset + si * stepTicks;
+        events.push({ tick, bytes: [0x99, part.note, vel], isOn: true });
+        events.push({ tick: tick + durTicks, bytes: [0x89, part.note, 0], isOn: false });
+      });
+    });
+  }
+
+  // tick順にソートしてdeltaに変換
+  const noteEvents = events.filter(e => e.tick !== undefined);
+  const headerEvents = events.filter(e => e.tick === undefined);
+  noteEvents.sort((a, b) => a.tick - b.tick || (a.isOn ? 1 : -1));
+
+  let cursor = 0;
+  const result = [...headerEvents];
+  noteEvents.forEach(e => {
+    result.push({ delta: e.tick - cursor, bytes: e.bytes });
+    cursor = e.tick;
+  });
+  return result;
+}
+
+// ==================== 初期化 ====================
+(function init() {
+  renderPalette();
+  renderGrid();
+  initDrums();
+})();
+</script>
+</body>
+</html>
