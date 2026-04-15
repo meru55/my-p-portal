@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0d0f;
+    --surface: #15151a;
+    --surface2: #1e1e26;
+    --border: #2a2a35;
+    --accent: #e8ff47;
+    --accent2: #ff6b47;
+    --text: #e8e8f0;
+    --muted: #666680;
+    --radius: 10px;
+  }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  h1 {
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--accent);
+    align-self: flex-start;
+  }
+  h1 span { color: var(--muted); font-weight: 400; font-size: 0.85rem; margin-left: 8px; }
+
+  .container {
+    width: 100%;
+    max-width: 860px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* Drop Zone */
+  #dropzone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    background: var(--surface);
+  }
+  #dropzone:hover, #dropzone.dragover {
+    border-color: var(--accent);
+    background: #1a1a20;
+  }
+  #dropzone .icon { font-size: 2.4rem; margin-bottom: 10px; }
+  #dropzone p { color: var(--muted); font-size: 0.9rem; }
+  #dropzone p strong { color: var(--accent); }
+  #fileInput { display: none; }
+
+  /* Player Area */
+  #playerArea { display: none; flex-direction: column; gap: 16px; }
+
+  /* Video Preview */
+  #videoWrap {
+    position: relative;
+    background: #000;
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  #video {
+    width: 100%;
+    display: block;
+    max-height: 440px;
+    object-fit: contain;
+    background: #000;
+  }
+
+  /* Controls */
+  .controls {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* Seekbar */
+  .seekbar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  #seekbar {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--border);
+    outline: none;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  #seekbar::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: 0 0 6px rgba(232,255,71,0.5);
+  }
+  #seekbar::-moz-range-thumb {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: none;
+    cursor: pointer;
+  }
+  .time-display {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.82rem;
+    color: var(--muted);
+    min-width: 110px;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .time-display span { color: var(--accent); }
+
+  /* Bottom controls row */
+  .ctrl-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  /* Play/Pause */
+  #playBtn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-family: 'Syne', sans-serif;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  #playBtn:hover { background: var(--border); border-color: var(--accent); }
+
+  /* Second input */
+  .sec-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+  }
+  .sec-group label {
+    font-size: 0.78rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  #secInput {
+    width: 90px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.85rem;
+    text-align: center;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  #secInput:focus { border-color: var(--accent); }
+
+  /* Capture Button */
+  #captureBtn {
+    background: var(--accent);
+    color: #0d0d0f;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.88rem;
+    letter-spacing: 0.02em;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+  #captureBtn:hover { opacity: 0.88; transform: translateY(-1px); }
+  #captureBtn:active { transform: translateY(0); }
+
+  /* Gallery */
+  #gallery {
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .gallery-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .gallery-header h2 {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  #clearBtn {
+    font-size: 0.75rem;
+    color: var(--muted);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  #clearBtn:hover { color: var(--accent2); border-color: var(--accent2); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+  }
+  .thumb-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: border-color 0.15s;
+  }
+  .thumb-card:hover { border-color: var(--accent); }
+  .thumb-card img {
+    width: 100%;
+    aspect-ratio: 16/9;
+    object-fit: cover;
+    display: block;
+  }
+  .thumb-footer {
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .thumb-ts {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+  .dl-btn {
+    background: var(--accent);
+    color: #0d0d0f;
+    border: none;
+    border-radius: 5px;
+    padding: 4px 10px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    font-family: 'Syne', sans-serif;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    transition: opacity 0.15s;
+  }
+  .dl-btn:hover { opacity: 0.8; }
+
+  /* Flash effect */
+  #flash {
+    position: fixed;
+    inset: 0;
+    background: white;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 999;
+    transition: opacity 0.05s;
+  }
+
+  canvas { display: none; }
+</style>
+</head>
+<body>
+
+<div id="flash"></div>
+<canvas id="canvas"></canvas>
+
+<div class="container">
+  <h1>FRAME CAPTURE <span>動画フレーム保存ツール</span></h1>
+
+  <!-- Drop Zone -->
+  <div id="dropzone" onclick="document.getElementById('fileInput').click()">
+    <div class="icon">🎬</div>
+    <p><strong>クリック</strong>または動画ファイルをドロップ</p>
+    <p style="margin-top:6px; font-size:0.78rem;">MP4 / MOV / WebM / AVI など</p>
+  </div>
+  <input type="file" id="fileInput" accept="video/*">
+
+  <!-- Player Area -->
+  <div id="playerArea">
+    <div id="videoWrap">
+      <video id="video" preload="metadata"></video>
+    </div>
+
+    <div class="controls">
+      <div class="seekbar-wrap">
+        <input type="range" id="seekbar" min="0" max="1000" value="0" step="1">
+        <div class="time-display"><span id="curTime">0:00.000</span> / <span id="durTime">0:00.000</span></div>
+      </div>
+      <div class="ctrl-row">
+        <button id="playBtn">▶ 再生</button>
+        <div class="sec-group">
+          <label>秒数指定:</label>
+          <input type="number" id="secInput" min="0" step="0.001" value="0" placeholder="秒">
+        </div>
+        <button id="captureBtn">📷 キャプチャ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gallery -->
+  <div id="gallery">
+    <div class="gallery-header">
+      <h2>Captured Frames</h2>
+      <button id="clearBtn">すべて削除</button>
+    </div>
+    <div class="grid" id="grid"></div>
+  </div>
+</div>
+
+<script>
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  const playerArea = document.getElementById('playerArea');
+  const video = document.getElementById('video');
+  const seekbar = document.getElementById('seekbar');
+  const curTimeEl = document.getElementById('curTime');
+  const durTimeEl = document.getElementById('durTime');
+  const playBtn = document.getElementById('playBtn');
+  const secInput = document.getElementById('secInput');
+  const captureBtn = document.getElementById('captureBtn');
+  const canvas = document.getElementById('canvas');
+  const gallery = document.getElementById('gallery');
+  const grid = document.getElementById('grid');
+  const clearBtn = document.getElementById('clearBtn');
+  const flash = document.getElementById('flash');
+
+  let captureCount = 0;
+
+  // Drag & Drop
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('video/')) loadVideo(file);
+  });
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) loadVideo(fileInput.files[0]);
+  });
+
+  function loadVideo(file) {
+    const url = URL.createObjectURL(file);
+    video.src = url;
+    dropzone.style.display = 'none';
+    playerArea.style.display = 'flex';
+  }
+
+  function fmt(t) {
+    const m = Math.floor(t / 60);
+    const s = Math.floor(t % 60);
+    const ms = Math.round((t % 1) * 1000);
+    return `${m}:${String(s).padStart(2,'0')}.${String(ms).padStart(3,'0')}`;
+  }
+
+  video.addEventListener('loadedmetadata', () => {
+    durTimeEl.textContent = fmt(video.duration);
+    secInput.max = video.duration;
+  });
+
+  video.addEventListener('timeupdate', () => {
+    const pct = (video.currentTime / video.duration) * 1000;
+    seekbar.value = pct;
+    curTimeEl.textContent = fmt(video.currentTime);
+    secInput.value = video.currentTime.toFixed(3);
+  });
+
+  video.addEventListener('play', () => playBtn.textContent = '⏸ 一時停止');
+  video.addEventListener('pause', () => playBtn.textContent = '▶ 再生');
+
+  seekbar.addEventListener('input', () => {
+    const t = (seekbar.value / 1000) * video.duration;
+    video.currentTime = t;
+  });
+
+  secInput.addEventListener('change', () => {
+    let t = parseFloat(secInput.value);
+    if (isNaN(t)) return;
+    t = Math.max(0, Math.min(video.duration, t));
+    video.currentTime = t;
+    secInput.value = t.toFixed(3);
+  });
+
+  playBtn.addEventListener('click', () => {
+    if (video.paused) video.play(); else video.pause();
+  });
+
+  captureBtn.addEventListener('click', doCapture);
+
+  function doCapture() {
+    video.pause();
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+    const dataURL = canvas.toDataURL('image/png');
+    const ts = fmt(video.currentTime);
+
+    captureCount++;
+    addThumb(dataURL, ts, captureCount);
+
+    // Flash
+    flash.style.opacity = '0.5';
+    setTimeout(() => { flash.style.opacity = '0'; }, 120);
+  }
+
+  function addThumb(dataURL, ts, n) {
+    gallery.style.display = 'flex';
+    const card = document.createElement('div');
+    card.className = 'thumb-card';
+
+    const img = document.createElement('img');
+    img.src = dataURL;
+
+    const footer = document.createElement('div');
+    footer.className = 'thumb-footer';
+
+    const tsEl = document.createElement('span');
+    tsEl.className = 'thumb-ts';
+    tsEl.textContent = ts;
+
+    const a = document.createElement('a');
+    a.className = 'dl-btn';
+    a.download = `frame_${String(n).padStart(3,'0')}_${ts.replace(/:/g,'-').replace(/\./g,'-')}.png`;
+    a.href = dataURL;
+    a.textContent = 'DL';
+
+    footer.appendChild(tsEl);
+    footer.appendChild(a);
+    card.appendChild(img);
+    card.appendChild(footer);
+    grid.prepend(card);
+  }
+
+  clearBtn.addEventListener('click', () => {
+    grid.innerHTML = '';
+    gallery.style.display = 'none';
+    captureCount = 0;
+  });
+</script>
+</body>
+</html>
