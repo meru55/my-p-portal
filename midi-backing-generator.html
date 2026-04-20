@@ -634,7 +634,31 @@
     font-weight: 400;
   }
 
-  /* Drum step sequencer */
+  .palette-card.nondiatonic {
+    opacity: 0.85;
+  }
+  .palette-card .nd-tag {
+    font-size: 8px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    margin-top: 1px;
+    font-family: 'DM Mono', monospace;
+    font-weight: 400;
+  }
+  .search-card {
+    background: var(--bg3);
+    border: 1px solid var(--accent2);
+    border-radius: 6px;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent2);
+    user-select: none;
+    transition: background 0.1s;
+  }
+  .search-card:hover { background: var(--accent2); color: white; }
   .drum-row { display:flex; align-items:center; gap:4px; min-width:max-content; }
   .drum-label { width:72px; font-size:11px; color:var(--text2); flex-shrink:0; text-align:right; padding-right:8px; font-family:'DM Mono',monospace; }
   .drum-steps { display:flex; gap:2px; }
@@ -700,19 +724,35 @@
           <button class="chord-btn" onclick="clearGrid()" style="font-size:11px;color:var(--danger);">グリッドをクリア</button>
         </div>
       </div>
-      <!-- コードパレット -->
-      <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">スケールコード — ドラッグしてグリッドへ</div>
-      <div id="chord-palette" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;min-height:44px;"></div>
+      <!-- コードサーチ (B案) -->
+      <div style="display:flex;gap:6px;margin-bottom:12px;">
+        <input type="text" id="chord-search" placeholder="例: F#m7  Ab  Bdim7 ..." autocomplete="off"
+          style="flex:1;font-size:13px;"
+          oninput="updateChordSearch()"
+          onkeydown="if(event.key==='Enter')commitChordSearch()">
+        <button class="add-chord-btn" onclick="commitChordSearch()" style="white-space:nowrap;">グリッドへ追加</button>
+      </div>
+      <div id="search-candidates" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;min-height:0;"></div>
+
+      <!-- ダイアトニックパレット -->
+      <div style="font-size:11px;color:var(--text3);margin-bottom:5px;">ダイアトニック</div>
+      <div id="chord-palette" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;min-height:40px;"></div>
+
+      <!-- ノンダイアトニック (C案) -->
+      <div id="nondiatonic-section">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:5px;">ノンダイアトニック</div>
+        <div id="nd-palette" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px;min-height:40px;"></div>
+      </div>
       <!-- グリッドエリア -->
       <div style="font-size:11px;color:var(--text3);margin-bottom:6px;display:flex;align-items:center;gap:8px;">
         <span>コード進行グリッド</span>
-        <span style="color:var(--text3);font-size:10px;">右端をドラッグで長さ調整</span>
+        <span style="color:var(--text3);font-size:10px;">右端ドラッグで長さ調整 / 右クリックでコード変更</span>
         <button class="chord-btn" onclick="addGridBar()" style="font-size:11px;margin-left:auto;">+ 1小節追加</button>
       </div>
-      <div id="chord-grid-wrap" style="overflow-x:auto;padding-bottom:4px;">
-        <div id="chord-grid" style="position:relative;"></div>
+      <div id="chord-grid-wrap" style="padding-bottom:4px;">
+        <div id="chord-grid"></div>
       </div>
-      <div id="grid-ruler" style="display:flex;margin-top:4px;font-size:10px;color:var(--text3);"></div>
+      <div id="grid-ruler" style="font-size:10px;color:var(--text3);"></div>
     </div>
 
 
@@ -733,12 +773,6 @@
     <!-- 設定 -->
     <div class="panel">
       <div class="panel-title">設定</div>
-      <div class="setting-row">
-        <span class="setting-label">テンポ (BPM)</span>
-        <div class="setting-value">
-          <input type="number" id="bpm" value="120" min="40" max="240">
-        </div>
-      </div>
       <div class="setting-row">
         <span class="setting-label">拍子</span>
         <div class="setting-value">
@@ -765,7 +799,7 @@
         <div class="setting-value">
           <select id="cut-pattern">
             <option value="straight">ストレート 16th</option>
-            <option value="soul">ソウル (↓↑↓↑)</option>
+            <option value="soul" selected>ソウル (↓↑↓↑)</option>
             <option value="funk">ファンク (ゴースト入り)</option>
             <option value="bossa">ボサノバ</option>
             <option value="ballad">バラード 8th</option>
@@ -856,7 +890,7 @@
       <!-- 小節数 -->
       <div style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0;">
         <span style="font-size:11px;color:var(--text3);">ループ</span>
-        <input type="number" id="drum-bars" value="2" min="1" max="8" style="width:48px;">
+        <input type="number" id="drum-bars" value="4" min="1" max="8" style="width:48px;">
         <span style="font-size:11px;color:var(--text3);">小節</span>
       </div>
     </div>
@@ -871,8 +905,8 @@
   <!-- Generate -->
   <div class="generate-section">
     <select class="out-select" id="out-format">
+      <option value="split" selected>トラック別 (.mid × 複数) — D&amp;D推奨</option>
       <option value="multi">マルチトラック (.mid)</option>
-      <option value="split">トラック別 (複数.mid)</option>
       <option value="both">両方</option>
     </select>
     <button class="gen-btn" id="gen-btn" onclick="generate()">Generate MIDI</button>
@@ -980,11 +1014,18 @@ let showExt = false;
 
 // グリッド: [{chordName, rootMidi, quality, tones, durationEighths, color}]
 // 1小節 = 8 eighths
-const GRID_BARS = 2; // 初期小節数
-const CELL_W = 40;   // px per eighth note
-const NOTE_COLORS = ['#e8ff47','#7f6fff','#47ffb0','#ffb347','#ff6b9d','#47d4ff','#ff9f47'];
-let gridBlocks = []; // {chord, startEighth, durationEighths, color}
+const GRID_BARS = 4; // 初期小節数
+const BARS_PER_ROW = 4;
+const EIGHTHS_PER_ROW = BARS_PER_ROW * 8; // 32
+// CELL_W は描画時にパネル幅から計算する（固定値なし）
+function getCellW() {
+  const wrap = document.getElementById('chord-grid-wrap');
+  if (!wrap) return 24;
+  return Math.max(16, Math.floor((wrap.clientWidth - 2) / EIGHTHS_PER_ROW));
+}
 let totalGridEighths = GRID_BARS * 8;
+const NOTE_COLORS = ['#e8ff47','#7f6fff','#47ffb0','#ffb347','#ff6b9d','#47d4ff','#ff9f47'];
+let gridBlocks = [];
 
 function switchTab(tab) {
   activeTab = tab;
@@ -1009,6 +1050,7 @@ function renderPalette() {
   const rootMidi = NOTE_MAP[key];
   const palette = document.getElementById('chord-palette');
 
+  // ダイアトニック
   palette.innerHTML = intervals.map((interval, i) => {
     const noteMidi = (rootMidi + interval) % 12;
     const noteName = Object.keys(NOTE_MAP).find(k => NOTE_MAP[k] === noteMidi && !k.includes('b')) || key;
@@ -1016,7 +1058,7 @@ function renderPalette() {
     const name = noteName + q;
     const color = NOTE_COLORS[i % NOTE_COLORS.length];
     return `<div class="palette-card" draggable="true"
-      style="color:${color};border-color:${color}33;"
+      style="border-color:${color}44;"
       data-chord="${name}" data-color="${color}"
       ondragstart="paletteDragStart(event,'${name}','${color}')"
       onclick="quickAddToGrid('${name}','${color}')">
@@ -1024,6 +1066,9 @@ function renderPalette() {
       <span class="degree">${DEGREE_NAMES[i]}</span>
     </div>`;
   }).join('');
+
+  // ノンダイアトニック生成 (C案)
+  renderNonDiatonic(key, type, rootMidi, intervals, qualities);
 }
 
 function toggleExt() {
@@ -1035,40 +1080,231 @@ function toggleExt() {
   renderPalette();
 }
 
+// ノンダイアトニック生成 (C案)
+function renderNonDiatonic(key, type, rootMidi, diatonicIntervals, diatonicQualities) {
+  const nd = [];
+  const diatonicPCs = new Set(diatonicIntervals.map(i => (rootMidi + i) % 12));
+  const noteName = n => Object.keys(NOTE_MAP).find(k => NOTE_MAP[k] === n%12 && !k.includes('b')) || '?';
+
+  // セカンダリドミナント V7/x (II7 III7 IV7 VI7 — ダイアトニックの各度への属7)
+  diatonicIntervals.forEach((interval, i) => {
+    const targetMidi = (rootMidi + interval) % 12;
+    const domRoot = (targetMidi - 7 + 12) % 12; // 完全5度下 = 属音
+    if (!diatonicPCs.has(domRoot)) {
+      const q = showExt ? '7' : '7';
+      nd.push({ name: noteName(domRoot) + q, color: '#ff9f47', tag: 'V7/' + DEGREE_NAMES[i] });
+    }
+  });
+
+  // サブドミナントマイナー (IVm, bVI, bVII)
+  const sdmCandidates = [
+    { interval: 5, q: 'm',  tag: 'IVm' },
+    { interval: 8, q: '',   tag: 'bVI' },
+    { interval: 10, q: '',  tag: 'bVII' },
+  ];
+  sdmCandidates.forEach(({ interval, q, tag }) => {
+    const midi = (rootMidi + interval) % 12;
+    if (!diatonicPCs.has(midi)) {
+      nd.push({ name: noteName(midi) + (showExt && q==='' ? 'M7' : q==='m'&&showExt ? 'm7' : q), color: '#47d4ff', tag });
+    }
+  });
+
+  // パッシングdim (半音階的dim)
+  [1, 3, 6, 8, 10].forEach(interval => {
+    const midi = (rootMidi + interval) % 12;
+    if (!diatonicPCs.has(midi)) {
+      const q = showExt ? 'dim7' : 'dim';
+      nd.push({ name: noteName(midi) + q, color: '#aa88ff', tag: 'dim' });
+    }
+  });
+
+  // 重複除去（ダイアトニックにあるものは除外）
+  const seen = new Set();
+  const unique = nd.filter(c => {
+    if (seen.has(c.name)) return false;
+    seen.add(c.name);
+    return true;
+  });
+
+  const el = document.getElementById('nd-palette');
+  el.innerHTML = unique.map(c =>
+    `<div class="palette-card nondiatonic" draggable="true"
+      style="border-color:${c.color}55;"
+      ondragstart="paletteDragStart(event,'${c.name}','${c.color}')"
+      onclick="quickAddToGrid('${c.name}','${c.color}')">
+      <span style="color:${c.color}">${c.name}</span>
+      <span class="nd-tag" style="background:${c.color}22;color:${c.color};">${c.tag}</span>
+    </div>`
+  ).join('');
+}
+
+// ==================== コードサーチ (B案) ====================
+function updateChordSearch() {
+  const raw = document.getElementById('chord-search').value.trim();
+  const el = document.getElementById('search-candidates');
+  if (!raw) { el.innerHTML = ''; return; }
+
+  // 入力に部分一致するコード候補を生成
+  const candidates = [];
+  const notes = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const quals = ['','m','7','M7','m7','mM7','6','m6','9','M9','m9','add9','sus2','sus4','dim','dim7','aug','m7b5'];
+  notes.forEach(n => {
+    quals.forEach(q => {
+      const name = n + q;
+      if (name.toLowerCase().startsWith(raw.toLowerCase()) || name === raw) {
+        candidates.push(name);
+      }
+    });
+  });
+
+  el.innerHTML = candidates.slice(0, 12).map(name =>
+    `<div class="search-card" onclick="searchCardClick('${name}')">${name}</div>`
+  ).join('');
+}
+
+function searchCardClick(name) {
+  document.getElementById('chord-search').value = name;
+  document.getElementById('search-candidates').innerHTML = '';
+  commitChordSearch();
+}
+
+function commitChordSearch() {
+  const val = document.getElementById('chord-search').value.trim();
+  if (!val) return;
+  const chord = parseChordName(val);
+  if (!chord) { document.getElementById('chord-search').style.borderColor = 'var(--danger)'; return; }
+  document.getElementById('chord-search').style.borderColor = '';
+  chord.name = val;
+  const lastEnd = gridBlocks.length > 0 ? Math.max(...gridBlocks.map(b => b.startEighth + b.durationEighths)) : 0;
+  if (lastEnd >= totalGridEighths) addGridBar();
+  placeBlock(val, '#7f6fff', lastEnd, 2);
+  document.getElementById('chord-search').value = '';
+  document.getElementById('search-candidates').innerHTML = '';
+}
+
+// ==================== ポップオーバー (D案) ====================
+let popoverTargetIdx = -1;
+
+function openPopover(e, blockIdx) {
+  e.preventDefault();
+  popoverTargetIdx = blockIdx;
+  const block = gridBlocks[blockIdx];
+  const pop = document.getElementById('chord-popover');
+  // 現在値をセット
+  document.getElementById('pop-root').value = block.chord.root;
+  document.getElementById('pop-quality').value = block.chord.quality || '';
+  updatePopPreview();
+  // 位置
+  const x = Math.min(e.clientX, window.innerWidth - 240);
+  const y = Math.min(e.clientY, window.innerHeight - 200);
+  pop.style.left = x + 'px';
+  pop.style.top = y + 'px';
+  pop.style.display = 'block';
+  document.getElementById('pop-root').onchange = updatePopPreview;
+  document.getElementById('pop-quality').onchange = updatePopPreview;
+}
+
+function updatePopPreview() {
+  const root = document.getElementById('pop-root').value;
+  const q = document.getElementById('pop-quality').value;
+  document.getElementById('pop-preview').textContent = root + q;
+}
+
+function applyPopover() {
+  if (popoverTargetIdx < 0) return;
+  const root = document.getElementById('pop-root').value;
+  const q = document.getElementById('pop-quality').value;
+  const name = root + q;
+  const chord = parseChordName(name);
+  if (!chord) return;
+  chord.name = name;
+  gridBlocks[popoverTargetIdx].chord = chord;
+  gridBlocks[popoverTargetIdx].color = gridBlocks[popoverTargetIdx].color; // keep color
+  closePopover();
+  renderGrid();
+}
+
+function closePopover() {
+  document.getElementById('chord-popover').style.display = 'none';
+  popoverTargetIdx = -1;
+}
+
+document.addEventListener('click', e => {
+  const pop = document.getElementById('chord-popover');
+  if (pop && pop.style.display !== 'none' && !pop.contains(e.target)) closePopover();
+});
+
 // ==================== グリッド ====================
+// BARS_PER_ROW, EIGHTHS_PER_ROW は上部で宣言済み
+
 function renderGrid() {
+  const CELL_W = getCellW(); // 毎回パネル幅から計算
   const grid = document.getElementById('chord-grid');
   const ruler = document.getElementById('grid-ruler');
-  const totalW = totalGridEighths * CELL_W;
+  const numRows = Math.ceil(totalGridEighths / EIGHTHS_PER_ROW);
 
-  // 背景セル（1行）
-  let cells = '';
-  for (let i = 0; i < totalGridEighths; i++) {
-    const isBarStart = i % 8 === 0;
-    cells += `<div class="grid-cell${isBarStart?' bar-start':''}"></div>`;
+  grid.style.width = '';
+  grid.style.display = 'block';
+  grid.style.height = '';
+  grid.style.background = '';
+  grid.style.borderTop = '';
+  grid.style.borderBottom = '';
+
+  let html = '';
+  for (let row = 0; row < numRows; row++) {
+    const rowStart = row * EIGHTHS_PER_ROW;
+    const rowEnd   = Math.min(rowStart + EIGHTHS_PER_ROW, totalGridEighths);
+    const rowCells = rowEnd - rowStart;
+    const actualW  = rowCells * CELL_W;
+
+    let cells = '';
+    for (let i = 0; i < rowCells; i++) {
+      const abs = rowStart + i;
+      const isBarStart = abs % 8 === 0;
+      cells += `<div class="grid-cell${isBarStart ? ' bar-start' : ''}" style="width:${CELL_W}px;"></div>`;
+    }
+
+    html += `<div class="grid-row-wrap" data-row="${row}" data-cellw="${CELL_W}"
+      style="position:relative;width:${actualW}px;height:44px;margin-bottom:2px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;overflow:visible;">
+      <div style="display:flex;width:100%;height:100%;position:absolute;top:0;left:0;">${cells}</div>
+      <div class="grid-drop-target" data-row="${row}"
+        style="position:absolute;top:0;left:0;right:0;bottom:0;z-index:1;"
+        ondragover="gridDragOver(event)"
+        ondragleave="gridDragLeave(event)"
+        ondrop="gridDrop(event,${row})"></div>
+    </div>`;
   }
 
-  grid.style.width = totalW + 'px';
-  grid.style.height = '44px';
-  grid.style.position = 'relative';
-  grid.style.display = 'flex';
-  grid.style.borderTop = '1px solid var(--border)';
-  grid.style.borderBottom = '1px solid var(--border)';
-  grid.style.background = 'var(--bg3)';
-  grid.innerHTML = `
-    <div style="display:flex;width:100%;height:100%;position:absolute;top:0;left:0;">${cells}</div>
-    <div id="grid-drop-zone" class="grid-drop-target"
-      ondragover="gridDragOver(event)"
-      ondragleave="gridDragLeave(event)"
-      ondrop="gridDrop(event)"></div>
-  `;
+  // ルーラー
+  let rulerHtml = '';
+  for (let row = 0; row < numRows; row++) {
+    let barLabels = '';
+    for (let b = 0; b < BARS_PER_ROW; b++) {
+      const absBar = row * BARS_PER_ROW + b;
+      if (absBar * 8 >= totalGridEighths) break;
+      barLabels += `<div style="width:${CELL_W*8}px;flex-shrink:0;padding-left:4px;font-size:10px;color:var(--text3);">小節${absBar+1}</div>`;
+    }
+    rulerHtml += `<div style="display:flex;margin-bottom:6px;">${barLabels}</div>`;
+  }
+
+  grid.innerHTML = html;
+  ruler.innerHTML = rulerHtml;
 
   // ブロック描画
   gridBlocks.forEach((b, i) => {
+    const bStart = b.startEighth;
+    const row = Math.floor(bStart / EIGHTHS_PER_ROW);
+    const rowWrap = grid.querySelector(`.grid-row-wrap[data-row="${row}"]`);
+    if (!rowWrap) return;
+
+    const localStart = bStart - row * EIGHTHS_PER_ROW;
+    const rowEndEighth = (row + 1) * EIGHTHS_PER_ROW;
+    const localDur = Math.min(b.durationEighths, rowEndEighth - bStart);
+
     const el = document.createElement('div');
     el.className = 'grid-block';
-    el.style.left = (b.startEighth * CELL_W) + 'px';
-    el.style.width = (b.durationEighths * CELL_W - 2) + 'px';
+    el.style.left   = (localStart * CELL_W) + 'px';
+    el.style.width  = Math.max(CELL_W - 2, localDur * CELL_W - 2) + 'px';
     el.style.background = b.color;
     el.style.zIndex = 2;
     el.innerHTML = `
@@ -1078,20 +1314,17 @@ function renderGrid() {
     `;
     el.addEventListener('mousedown', e => {
       if (e.target.classList.contains('grid-block-resize') || e.target.classList.contains('grid-block-remove')) return;
-      startBlockDrag(e, i);
+      startBlockDrag(e, i, row);
     });
-    grid.appendChild(el);
+    el.addEventListener('dblclick', e => {
+      if (e.target.classList.contains('grid-block-remove')) return;
+      e.stopPropagation();
+      e.preventDefault();
+      extendBlock(i);
+    });
+    el.addEventListener('contextmenu', e => openPopover(e, i));
+    rowWrap.appendChild(el);
   });
-
-  // ルーラー
-  ruler.innerHTML = '';
-  ruler.style.width = totalW + 'px';
-  for (let bar = 0; bar < totalGridEighths / 8; bar++) {
-    const div = document.createElement('div');
-    div.style.cssText = `width:${CELL_W*8}px;flex-shrink:0;padding-left:4px;`;
-    div.textContent = `小節${bar+1}`;
-    ruler.appendChild(div);
-  }
 }
 
 function addGridBar() {
@@ -1102,6 +1335,23 @@ function addGridBar() {
 function clearGrid() {
   gridBlocks = [];
   renderGrid();
+}
+
+// ダブルクリックで次のブロック開始位置まで一気に伸長
+function extendBlock(i) {
+  const block = gridBlocks[i];
+  const blockEnd = block.startEighth + block.durationEighths;
+
+  // 自分より後にある最も近いブロックの開始位置（なければグリッド末尾）
+  const nextStart = gridBlocks
+    .filter((b, j) => j !== i && b.startEighth >= blockEnd)
+    .reduce((min, b) => Math.min(min, b.startEighth), totalGridEighths);
+
+  const newDur = nextStart - block.startEighth;
+  if (newDur > block.durationEighths) {
+    gridBlocks[i].durationEighths = newDur;
+    renderGrid();
+  }
 }
 
 // パレット → グリッドへD&D
@@ -1122,20 +1372,22 @@ function gridDragLeave(e) {
   e.currentTarget.classList.remove('drag-over');
 }
 
-function gridDrop(e) {
+function gridDrop(e, row) {
   e.preventDefault();
   e.currentTarget.classList.remove('drag-over');
   if (!dragChordName) return;
-  const grid = document.getElementById('chord-grid');
-  const rect = grid.getBoundingClientRect();
+  const CELL_W = getCellW();
+  const rowWrap = document.querySelector(`.grid-row-wrap[data-row="${row}"]`);
+  if (!rowWrap) return;
+  const rect = rowWrap.getBoundingClientRect();
   const x = e.clientX - rect.left;
-  const startEighth = Math.max(0, Math.min(Math.floor(x / CELL_W), totalGridEighths - 1));
+  const localEighth = Math.max(0, Math.min(Math.floor(x / CELL_W), EIGHTHS_PER_ROW - 1));
+  const startEighth = row * EIGHTHS_PER_ROW + localEighth;
   placeBlock(dragChordName, dragChordColor, startEighth, 2);
   dragChordName = '';
 }
 
 function quickAddToGrid(name, color) {
-  // 空いている最後尾に追加
   const lastEnd = gridBlocks.length > 0
     ? Math.max(...gridBlocks.map(b => b.startEighth + b.durationEighths))
     : 0;
@@ -1147,7 +1399,6 @@ function placeBlock(name, color, startEighth, dur) {
   const chord = parseChordName(name);
   if (!chord) return;
   chord.name = name;
-  // 重なりチェック: 既存ブロックと重なる場合は短くする
   let d = dur;
   for (const b of gridBlocks) {
     if (startEighth < b.startEighth + b.durationEighths && startEighth + d > b.startEighth) {
@@ -1166,26 +1417,51 @@ function removeBlock(i) {
   renderGrid();
 }
 
-// ブロック移動
-let dragBlockIdx = -1, dragBlockOffsetX = 0;
-function startBlockDrag(e, idx) {
-  dragBlockIdx = idx;
-  const grid = document.getElementById('chord-grid');
-  const rect = grid.getBoundingClientRect();
+// ブロック移動（5px閾値でdblclickと共存）
+let dragBlockIdx = -1, dragBlockRow = 0;
+function startBlockDrag(e, idx, row) {
+  const CELL_W = getCellW();
+  const startX = e.clientX, startY = e.clientY;
+  let dragging = false;
   const block = gridBlocks[idx];
-  dragBlockOffsetX = e.clientX - rect.left - block.startEighth * CELL_W;
+
+  // mousedown時点のオフセットを確定
+  const origRw = document.querySelector(`.grid-row-wrap[data-row="${row}"]`);
+  if (!origRw) return;
+  const origRect = origRw.getBoundingClientRect();
+  const origLocalStart = block.startEighth - row * EIGHTHS_PER_ROW;
+  const offsetX = startX - origRect.left - origLocalStart * CELL_W;
 
   const onMove = ev => {
-    const x = ev.clientX - rect.left - dragBlockOffsetX;
-    const newStart = Math.max(0, Math.min(Math.round(x / CELL_W), totalGridEighths - block.durationEighths));
+    if (!dragging) {
+      if (Math.abs(ev.clientX - startX) < 5 && Math.abs(ev.clientY - startY) < 5) return;
+      dragging = true;
+    }
+
+    let targetRow = row;
+    document.querySelectorAll('.grid-row-wrap').forEach(rw => {
+      const r = rw.getBoundingClientRect();
+      if (ev.clientY >= r.top && ev.clientY <= r.bottom) targetRow = parseInt(rw.dataset.row);
+    });
+    const rw = document.querySelector(`.grid-row-wrap[data-row="${targetRow}"]`);
+    if (!rw) return;
+    const rect = rw.getBoundingClientRect();
+    const localX = ev.clientX - rect.left - offsetX;
+    const localEighth = Math.round(localX / CELL_W);
+    const newStart = Math.max(0, Math.min(
+      targetRow * EIGHTHS_PER_ROW + localEighth,
+      totalGridEighths - block.durationEighths
+    ));
     gridBlocks[idx].startEighth = newStart;
     renderGrid();
   };
   const onUp = () => {
     document.removeEventListener('mousemove', onMove);
     document.removeEventListener('mouseup', onUp);
-    gridBlocks.sort((a,b) => a.startEighth - b.startEighth);
-    renderGrid();
+    if (dragging) {
+      gridBlocks.sort((a, b) => a.startEighth - b.startEighth);
+      renderGrid();
+    }
   };
   document.addEventListener('mousemove', onMove);
   document.addEventListener('mouseup', onUp);
@@ -1194,13 +1470,17 @@ function startBlockDrag(e, idx) {
 // リサイズ
 function startResize(e, idx) {
   e.stopPropagation();
-  const grid = document.getElementById('chord-grid');
-  const rect = grid.getBoundingClientRect();
+  const CELL_W = getCellW();
   const block = gridBlocks[idx];
+  const row = Math.floor(block.startEighth / EIGHTHS_PER_ROW);
+  const rowWrap = document.querySelector(`.grid-row-wrap[data-row="${row}"]`);
+  if (!rowWrap) return;
+  const rect = rowWrap.getBoundingClientRect();
+  const localEighthStart = block.startEighth - row * EIGHTHS_PER_ROW;
 
   const onMove = ev => {
-    const x = ev.clientX - rect.left;
-    const newDur = Math.max(1, Math.round((x - block.startEighth * CELL_W) / CELL_W));
+    const localX = ev.clientX - rect.left;
+    const newDur = Math.max(1, Math.round((localX - localEighthStart * CELL_W) / CELL_W));
     const maxDur = totalGridEighths - block.startEighth;
     gridBlocks[idx].durationEighths = Math.min(newDur, maxDur);
     renderGrid();
@@ -1418,14 +1698,19 @@ function midiTrack(events) {
 }
 
 function buildMidiFile(tracks, bpm, tpb) {
+  const isMulti = tracks.length > 1;
+  // Format 1 では track 0 をテンポ専用トラックにする
+  const allTracks = isMulti
+    ? [[tempoEvent(bpm)], ...tracks]
+    : tracks;
   const header = [
     0x4D,0x54,0x68,0x64, 0,0,0,6,
-    ...writeUint16(tracks.length > 1 ? 1 : 0),
-    ...writeUint16(tracks.length),
+    ...writeUint16(isMulti ? 1 : 0),
+    ...writeUint16(allTracks.length),
     ...writeUint16(tpb)
   ];
   const body = [];
-  tracks.forEach(t => {
+  allTracks.forEach(t => {
     const td = midiTrack(t);
     body.push(0x4D,0x54,0x72,0x6B, ...writeUint32(td.length), ...td);
   });
@@ -1465,7 +1750,7 @@ function getVoicing(chord, style, octave=5) {
 
 // ギターカッティングパターン生成
 function generateGuitarTrack(entries, tpb, pattern, voicingStyle, bpm) {
-  const events = [tempoEvent(bpm), progChange(0, 25)];
+  const events = [progChange(0, 25)];
   const sixteenth = tpb / 4;
   const eighth = tpb / 2;
 
@@ -1513,19 +1798,28 @@ function generateGuitarTrack(entries, tpb, pattern, voicingStyle, bpm) {
 }
 
 // ベースルート生成
+const BASS_NOTE_MIN = 40; // E2（1オクターブ上げ）
+
+function clampBass(note) {
+  while (note < BASS_NOTE_MIN) note += 12;
+  return note;
+}
+
 function generateBassRootTrack(entries, tpb, bpm) {
-  const events = [tempoEvent(bpm), progChange(1, 33)];
+  const events = [progChange(1, 33)];
+  const eighth = tpb / 2;
 
   entries.forEach(({ chord, durationTicks }) => {
-    const root = chord.rootMidi + 2*12;
-    const numBeats = Math.round(durationTicks / tpb);
+    const root = clampBass(chord.rootMidi + 3*12);
+    const numEighths = Math.round(durationTicks / eighth);
     let cursor = 0;
-    for (let i=0; i<numBeats; i++) {
-      const vel = i%4===0 ? 95 : (i%2===0 ? 80 : 70);
-      const dur = tpb - 8;
-      events.push(noteOn(1, root, vel, i===0?0:tpb-dur));
+    for (let i = 0; i < numEighths; i++) {
+      // 拍頭(偶数)は強め、裏(奇数)は弱め
+      const vel = i%8===0 ? 95 : (i%4===0 ? 85 : (i%2===0 ? 78 : 68));
+      const dur = eighth - 8;
+      events.push(noteOn(1, root, vel, i===0 ? 0 : eighth - dur));
       events.push(noteOff(1, root, dur));
-      cursor += tpb;
+      cursor += eighth;
     }
     const rem = durationTicks - cursor;
     if (rem > 0 && events.length > 0) events[events.length-1].delta += rem;
@@ -1534,46 +1828,38 @@ function generateBassRootTrack(entries, tpb, bpm) {
   return events;
 }
 
-// ベースオクターブ奏法
+// ベースオクターブ奏法（8分音符ベース）
 function generateBassOctaveTrack(entries, tpb, style, bpm) {
-  const events = [tempoEvent(bpm), progChange(2, 33)];
-  const sixteenth = tpb / 4;
+  const events = [progChange(2, 33)];
+  const eighth = tpb / 2;
+  const dur = eighth - 8; // ノートの長さ（8分-gap）
 
   entries.forEach(({ chord, durationTicks }) => {
-    const root = chord.rootMidi + 2*12;
-    const oct = root + 12;
-    const numBars = Math.max(1, Math.round(durationTicks / (tpb * 4)));
+    const root = clampBass(chord.rootMidi + 3*12);
+    const oct  = clampBass(root + 12);
+    const numEighths = Math.round(durationTicks / eighth);
     let cursor = 0;
 
-    for (let b=0; b<numBars; b++) {
-      let hits = [];
+    for (let i = 0; i < numEighths; i++) {
+      let note;
       if (style === 'standard') {
-        hits = [
-          {n:root,vel:95,dur:sixteenth*3-4},{n:oct,vel:80,dur:sixteenth-4},
-          {n:root,vel:90,dur:sixteenth*3-4},{n:oct,vel:75,dur:sixteenth-4},
-          {n:root,vel:92,dur:sixteenth*2-4},{n:root,vel:85,dur:sixteenth*2-4},
-          {n:oct,vel:78,dur:sixteenth-4},{n:root,vel:88,dur:sixteenth-4},
-        ];
+        // R Oct R Oct R Oct R Oct
+        note = i % 2 === 0 ? root : oct;
       } else if (style === 'muted') {
-        hits = [
-          {n:root,vel:95,dur:sixteenth-4},{n:root,vel:40,dur:sixteenth-4},
-          {n:oct,vel:80,dur:sixteenth-4},{n:root,vel:40,dur:sixteenth-4},
-          {n:root,vel:90,dur:sixteenth-4},{n:root,vel:40,dur:sixteenth-4},
-          {n:oct,vel:75,dur:sixteenth-4},{n:root,vel:40,dur:sixteenth-4},
-        ];
+        // R(強) R(ミュート) Oct R(ミュート) ...
+        if (i % 4 === 0)      note = root;
+        else if (i % 4 === 2) note = oct;
+        else                  note = root; // ミュート（低velocity）
       } else {
-        hits = [
-          {n:root,vel:95,dur:tpb-4},{n:oct,vel:82,dur:tpb/2-4},
-          {n:root,vel:88,dur:tpb/2-4},{n:root,vel:85,dur:tpb-4},
-          {n:oct,vel:78,dur:tpb/2-4},{n:oct+2,vel:72,dur:sixteenth-4},
-          {n:oct,vel:75,dur:sixteenth*3-4},
-        ];
+        // fill: 拍頭root、裏でoct、3拍目ちょい前にoct+fill
+        note = (i % 4 < 2) ? root : oct;
       }
-      hits.forEach(h => {
-        events.push(noteOn(2,h.n,h.vel,0));
-        events.push(noteOff(2,h.n,h.dur));
-        cursor += h.dur + 4;
-      });
+      const isMuted = style === 'muted' && i % 2 === 1;
+      const vel = isMuted ? 38 : (i%8===0 ? 95 : (i%4===0 ? 85 : 78));
+      const gap = i === 0 ? 0 : eighth - dur;
+      events.push(noteOn(2, note, vel, gap));
+      events.push(noteOff(2, note, dur));
+      cursor += eighth;
     }
     const rem = durationTicks - cursor;
     if (rem > 0 && events.length > 0) events[events.length-1].delta += Math.max(0, rem);
@@ -1584,7 +1870,7 @@ function generateBassOctaveTrack(entries, tpb, style, bpm) {
 
 // ストリングス カウンターメロディ
 function generateStringsTrack(entries, tpb, voicingStyle, bpm) {
-  const events = [tempoEvent(bpm), progChange(3, 48)];
+  const events = [progChange(3, 48)];
 
   entries.forEach(({ chord, durationTicks }) => {
     const root = chord.rootMidi + 5*12;
@@ -1605,12 +1891,13 @@ function generateStringsTrack(entries, tpb, voicingStyle, bpm) {
     }
 
     if (selected.length > 0) {
-      const dur = durationTicks - 8;
-      selected.forEach((n,ni) => events.push(noteOn(3,n,72-ni*6,0)));
-      selected.forEach((n,ni) => events.push(noteOff(3,n,ni===0?dur:0)));
-      events.push({ delta:8, bytes:[0x00] });
+      const dur = durationTicks - 4;
+      selected.forEach((n,ni) => events.push(noteOn(3, n, 72-ni*6, 0)));
+      selected.forEach((n,ni) => events.push(noteOff(3, n, ni===0 ? dur : 0)));
+      // 残り4tickをdeltaで吸収
+      if (events.length > 0) events[events.length-1].delta += 4;
     } else {
-      events.push({ delta: durationTicks, bytes:[0x00] });
+      if (events.length > 0) events[events.length-1].delta += durationTicks;
     }
   });
 
@@ -1619,6 +1906,15 @@ function generateStringsTrack(entries, tpb, voicingStyle, bpm) {
 
 // ==================== 生成エントリ ====================
 function generate() {
+  try {
+    _generateInternal();
+  } catch(e) {
+    console.error('Generate error:', e);
+    alert('生成エラー: ' + e.message + '\n\nコンソールで詳細を確認してください');
+  }
+}
+
+function _generateInternal() {
   const tpb = 480;
   const entries = getActiveChordEntries(tpb);
   if (!entries || entries.length === 0) {
@@ -1626,7 +1922,7 @@ function generate() {
     return;
   }
 
-  const bpm = parseInt(document.getElementById('bpm').value) || 120;
+  const bpm = 120;
   const cutPattern = document.getElementById('cut-pattern').value;
   const guitarVoicing = document.getElementById('guitar-voicing').value;
   const octStyle = document.getElementById('oct-style').value;
@@ -1709,7 +2005,7 @@ function generate() {
 
   const totalTicks = entries.reduce((s,e) => s + e.durationTicks, 0);
   const totalBars = (totalTicks / (tpb * 4)).toFixed(1);
-  const durSec = (totalTicks / tpb * 60 / (parseInt(document.getElementById('bpm').value)||120)).toFixed(1);
+  const durSec = (totalTicks / tpb * 60 / 120).toFixed(1);
   document.getElementById('status-bar').innerHTML = `
     <span><span class="status-dot ok"></span>${entries.length} コード</span>
     <span><span class="status-dot ok"></span>${totalBars} 小節</span>
@@ -1959,7 +2255,7 @@ function startVelDrag(e, pi, si) {
 function generateDrumTrack(bpm, tpb) {
   const bars = parseInt(document.getElementById('drum-bars').value) || 2;
   const stepTicks = tpb / 4; // 16分音符
-  const events = [tempoEvent(bpm), progChange(9, 0)]; // Ch.10
+  const events = [progChange(9, 0)]; // Ch.10
   const durTicks = stepTicks - 4;
 
   for (let bar = 0; bar < bars; bar++) {
@@ -1995,5 +2291,32 @@ function generateDrumTrack(bpm, tpb) {
   initDrums();
 })();
 </script>
+<!-- コード編集ポップオーバー (D案) -->
+<div id="chord-popover" style="display:none;position:fixed;z-index:1000;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px;min-width:220px;box-shadow:0 8px 24px rgba(0,0,0,0.5);">
+  <div style="font-size:11px;color:var(--text3);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+    <span>コードを変更</span>
+    <span onclick="closePopover()" style="cursor:pointer;color:var(--text3);font-size:14px;line-height:1;">×</span>
+  </div>
+  <div style="display:flex;gap:6px;margin-bottom:8px;">
+    <select id="pop-root" style="flex:1;font-size:12px;">
+      <option>C</option><option>C#</option><option>D</option><option>D#</option>
+      <option>E</option><option>F</option><option>F#</option><option>G</option>
+      <option>G#</option><option>A</option><option>A#</option><option>B</option>
+    </select>
+    <select id="pop-quality" style="flex:2;font-size:12px;">
+      <option value="">maj</option><option value="m">m</option>
+      <option value="7">7</option><option value="M7">M7</option>
+      <option value="m7">m7</option><option value="mM7">mM7</option>
+      <option value="6">6</option><option value="m6">m6</option>
+      <option value="9">9</option><option value="M9">M9</option>
+      <option value="m9">m9</option><option value="add9">add9</option>
+      <option value="sus2">sus2</option><option value="sus4">sus4</option>
+      <option value="dim">dim</option><option value="dim7">dim7</option>
+      <option value="aug">aug</option><option value="m7b5">m7b5</option>
+    </select>
+  </div>
+  <div id="pop-preview" style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:var(--accent);text-align:center;margin-bottom:8px;"></div>
+  <button onclick="applyPopover()" style="width:100%;background:var(--accent);border:none;color:var(--bg);padding:7px;border-radius:5px;font-family:'Syne',sans-serif;font-weight:700;font-size:13px;cursor:pointer;">適用</button>
+</div>
 </body>
 </html>
