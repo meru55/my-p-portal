@@ -747,12 +747,12 @@
       <div style="font-size:11px;color:var(--text3);margin-bottom:6px;display:flex;align-items:center;gap:8px;">
         <span>コード進行グリッド</span>
         <span style="color:var(--text3);font-size:10px;">右端ドラッグで長さ調整 / 右クリックでコード変更</span>
-        <button class="chord-btn" onclick="addGridBar()" style="font-size:11px;margin-left:auto;">+ 1小節追加</button>
+        <button class="chord-btn" onclick="addGridBar()" style="font-size:11px;margin-left:auto;">+ 1小節</button>
+        <button class="chord-btn" onclick="addGridBars(4)" style="font-size:11px;">+ 4小節</button>
       </div>
       <div id="chord-grid-wrap" style="padding-bottom:4px;">
         <div id="chord-grid"></div>
       </div>
-      <div id="grid-ruler" style="font-size:10px;color:var(--text3);"></div>
     </div>
 
 
@@ -867,6 +867,15 @@
             <div class="track-desc">カウンターメロディ (コードトーン)</div>
           </div>
           <div class="track-ch">Ch.4</div>
+        </div>
+        <div class="track-item">
+          <input type="checkbox" id="tr-chord" checked>
+          <div class="track-icon" style="background:#1a1828;color:#c8aaff;">C</div>
+          <div style="flex:1">
+            <div class="track-name">Chord MIDI</div>
+            <div class="track-desc">コードトーン サスティン</div>
+          </div>
+          <div class="track-ch">Ch.5</div>
         </div>
         <div class="track-item">
           <input type="checkbox" id="tr-drums" checked>
@@ -1238,9 +1247,8 @@ document.addEventListener('click', e => {
 // BARS_PER_ROW, EIGHTHS_PER_ROW は上部で宣言済み
 
 function renderGrid() {
-  const CELL_W = getCellW(); // 毎回パネル幅から計算
+  const CELL_W = getCellW();
   const grid = document.getElementById('chord-grid');
-  const ruler = document.getElementById('grid-ruler');
   const numRows = Math.ceil(totalGridEighths / EIGHTHS_PER_ROW);
 
   grid.style.width = '';
@@ -1264,31 +1272,29 @@ function renderGrid() {
       cells += `<div class="grid-cell${isBarStart ? ' bar-start' : ''}" style="width:${CELL_W}px;"></div>`;
     }
 
-    html += `<div class="grid-row-wrap" data-row="${row}" data-cellw="${CELL_W}"
-      style="position:relative;width:${actualW}px;height:44px;margin-bottom:2px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;overflow:visible;">
-      <div style="display:flex;width:100%;height:100%;position:absolute;top:0;left:0;">${cells}</div>
-      <div class="grid-drop-target" data-row="${row}"
-        style="position:absolute;top:0;left:0;right:0;bottom:0;z-index:1;"
-        ondragover="gridDragOver(event)"
-        ondragleave="gridDragLeave(event)"
-        ondrop="gridDrop(event,${row})"></div>
-    </div>`;
-  }
-
-  // ルーラー
-  let rulerHtml = '';
-  for (let row = 0; row < numRows; row++) {
+    // ルーラー（この行の直下）
     let barLabels = '';
     for (let b = 0; b < BARS_PER_ROW; b++) {
       const absBar = row * BARS_PER_ROW + b;
       if (absBar * 8 >= totalGridEighths) break;
       barLabels += `<div style="width:${CELL_W*8}px;flex-shrink:0;padding-left:4px;font-size:10px;color:var(--text3);">小節${absBar+1}</div>`;
     }
-    rulerHtml += `<div style="display:flex;margin-bottom:6px;">${barLabels}</div>`;
+
+    html += `<div style="margin-bottom:8px;">
+      <div class="grid-row-wrap" data-row="${row}" data-cellw="${CELL_W}"
+        style="position:relative;width:${actualW}px;height:44px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;overflow:visible;">
+        <div style="display:flex;width:100%;height:100%;position:absolute;top:0;left:0;">${cells}</div>
+        <div class="grid-drop-target" data-row="${row}"
+          style="position:absolute;top:0;left:0;right:0;bottom:0;z-index:1;"
+          ondragover="gridDragOver(event)"
+          ondragleave="gridDragLeave(event)"
+          ondrop="gridDrop(event,${row})"></div>
+      </div>
+      <div style="display:flex;margin-top:3px;">${barLabels}</div>
+    </div>`;
   }
 
   grid.innerHTML = html;
-  ruler.innerHTML = rulerHtml;
 
   // ブロック描画
   gridBlocks.forEach((b, i) => {
@@ -1329,6 +1335,11 @@ function renderGrid() {
 
 function addGridBar() {
   totalGridEighths += 8;
+  renderGrid();
+}
+
+function addGridBars(n) {
+  totalGridEighths += 8 * n;
   renderGrid();
 }
 
@@ -1651,24 +1662,11 @@ function guessQuality(intervals) {
 }
 
 // ==================== MIDI生成 ====================
-// chordEntry: { chord, durationTicks }
+// 常にボタンUIのグリッドを使用
 function getActiveChordEntries(tpb) {
   const eighth = tpb / 2;
-  if (activeTab === 'text') {
-    const text = document.getElementById('chord-text').value;
-    const { chords, errors } = parseChordsText(text);
-    if (errors.length) {
-      const el = document.getElementById('text-error');
-      el.textContent = '認識できなかったコード: ' + errors.join(', ');
-      el.classList.add('visible');
-    }
-    return chords.map(c => ({ chord: c, durationTicks: tpb * 4 }));
-  } else if (activeTab === 'button') {
-    if (gridBlocks.length === 0) return [];
-    return gridBlocks.map(b => ({ chord: b.chord, durationTicks: b.durationEighths * eighth, durationEighths: b.durationEighths }));
-  } else {
-    return midiChords.map(c => ({ chord: c, durationTicks: tpb * 4 }));
-  }
+  if (gridBlocks.length === 0) return [];
+  return gridBlocks.map(b => ({ chord: b.chord, durationTicks: b.durationEighths * eighth, durationEighths: b.durationEighths }));
 }
 
 // VLQ書き込み
@@ -1904,6 +1902,26 @@ function generateStringsTrack(entries, tpb, voicingStyle, bpm) {
   return events;
 }
 
+// コードMIDI（コードトーンをそのままサスティン、Ch.5）
+function generateChordTrack(entries, tpb, bpm) {
+  const events = [progChange(4, 0)]; // Ch.5 = index 4, Piano
+  entries.forEach(({ chord, durationTicks }) => {
+    // ボイシング: 4オクターブ付近でクローズ配置
+    const root = chord.rootMidi + 4 * 12;
+    const notes = chord.tones.map(t => {
+      let n = root + t;
+      while (n > 76) n -= 12;
+      while (n < 48) n += 12;
+      return n;
+    });
+    const dur = durationTicks - 4;
+    notes.forEach((n, ni) => events.push(noteOn(4, n, 80 - ni * 4, 0)));
+    notes.forEach((n, ni) => events.push(noteOff(4, n, ni === 0 ? dur : 0)));
+    if (events.length > 0) events[events.length - 1].delta += 4;
+  });
+  return events;
+}
+
 // ==================== 生成エントリ ====================
 function generate() {
   try {
@@ -1918,7 +1936,7 @@ function _generateInternal() {
   const tpb = 480;
   const entries = getActiveChordEntries(tpb);
   if (!entries || entries.length === 0) {
-    alert('コードを入力してください');
+    alert('グリッドにコードを追加してください（ボタンUI）');
     return;
   }
 
@@ -1933,6 +1951,7 @@ function _generateInternal() {
   const useBassRoot = document.getElementById('tr-bass-root').checked;
   const useBassOct = document.getElementById('tr-bass-oct').checked;
   const useStrings = document.getElementById('tr-strings').checked;
+  const useChord = document.getElementById('tr-chord').checked;
   const useDrums = document.getElementById('tr-drums').checked;
 
   const tracks = [];
@@ -1953,6 +1972,10 @@ function _generateInternal() {
   if (useStrings) {
     tracks.push(generateStringsTrack(entries, tpb, strVoicing, bpm));
     trackMeta.push({ name:'Strings Counter', color:'#47ffb0', cls:'strings' });
+  }
+  if (useChord) {
+    tracks.push(generateChordTrack(entries, tpb, bpm));
+    trackMeta.push({ name:'Chord MIDI', color:'#c8aaff', cls:'chord' });
   }
   if (useDrums) {
     tracks.push(generateDrumTrack(bpm, tpb));
@@ -2031,6 +2054,8 @@ function generatePreviewNotes(entries, cls) {
       return [0,0.45,0.65].map(o=>`<div class="pr-note oct" style="left:${x+o*w}%;width:${Math.max(0.5,w*0.28)}%;top:${o===0?45:65}%;"></div>`).join('');
     } else if (cls === 'strings') {
       return `<div class="pr-note strings" style="left:${x}%;width:${w*0.95}%;top:25%;height:5px;opacity:0.7;"></div>`;
+    } else if (cls === 'chord') {
+      return [0,1,2].map(pi => `<div class="pr-note" style="left:${x}%;width:${w*0.93}%;top:${20+pi*20}%;height:5px;background:#c8aaff;opacity:0.8;border-radius:2px;"></div>`).join('');
     } else {
       // drums: show step pattern from first 2 parts
       return drumSteps.slice(0,2).map((steps, pi) =>
