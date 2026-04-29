@@ -1,0 +1,1422 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Song Planner — 作曲計画ツール</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&family=DM+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --bg-elev: #161616;
+    --bg-card: #1c1c1c;
+    --border: #2a2a2a;
+    --border-hover: #3a3a3a;
+    --text: #e8e8e8;
+    --text-dim: #888;
+    --text-mute: #555;
+    --accent: #e8ff47;
+    --accent-dim: #b8c834;
+    --danger: #ff5a5a;
+    --success: #5aff8a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Noto Sans JP", sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 32px 24px 80px;
+  }
+
+  /* Header */
+  header {
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 20px;
+    margin-bottom: 32px;
+  }
+  header h1 {
+    font-family: "Syne", sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  header .accent { color: var(--accent); }
+  header .sub {
+    font-family: "DM Mono", monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    letter-spacing: 0.05em;
+  }
+
+  /* Project Bar */
+  .project-bar {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+  .project-bar label {
+    font-family: "DM Mono", monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .project-bar select, .project-bar input[type="text"] {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 5px;
+    font-family: "Noto Sans JP", sans-serif;
+    font-size: 13px;
+    min-width: 180px;
+  }
+  .project-bar select:focus, .project-bar input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .project-bar .spacer { flex: 1; }
+
+  button {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 14px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: "DM Mono", monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    transition: all 0.15s;
+  }
+  button:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  button.primary {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+    font-weight: 700;
+  }
+  button.primary:hover {
+    background: var(--accent-dim);
+    color: var(--bg);
+  }
+  button.danger:hover { border-color: var(--danger); color: var(--danger); }
+
+  /* Section (8軸) */
+  .section {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 4px;
+  }
+  .section-num {
+    font-family: "DM Mono", monospace;
+    font-size: 11px;
+    color: var(--accent);
+    background: rgba(232, 255, 71, 0.1);
+    border: 1px solid rgba(232, 255, 71, 0.3);
+    padding: 2px 8px;
+    border-radius: 3px;
+    letter-spacing: 0.1em;
+  }
+  .section h2 {
+    font-family: "Syne", sans-serif;
+    font-size: 20px;
+    font-weight: 600;
+  }
+  .section .desc {
+    color: var(--text-dim);
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+  .section .example {
+    font-family: "DM Mono", monospace;
+    font-size: 11px;
+    color: var(--text-mute);
+    background: var(--bg);
+    border-left: 2px solid var(--accent);
+    padding: 6px 10px;
+    margin-bottom: 16px;
+    border-radius: 0 4px 4px 0;
+  }
+  .section .example::before {
+    content: "EX. ";
+    color: var(--accent);
+  }
+
+  /* Field */
+  .field { margin-bottom: 18px; }
+  .field:last-child { margin-bottom: 0; }
+  .field-label {
+    font-family: "DM Mono", monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+    display: block;
+  }
+  .field-hint {
+    font-size: 12px;
+    color: var(--text-mute);
+    margin-top: 6px;
+  }
+
+  /* Choice grid */
+  .choices {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px;
+  }
+  .choices.compact {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+  .choice {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 10px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.12s;
+    font-size: 13px;
+    user-select: none;
+  }
+  .choice:hover {
+    border-color: var(--border-hover);
+    background: #222;
+  }
+  .choice.selected {
+    border-color: var(--accent);
+    background: rgba(232, 255, 71, 0.08);
+    color: var(--accent);
+  }
+  .choice .choice-label { font-weight: 500; }
+  .choice .choice-desc {
+    font-size: 11px;
+    color: var(--text-mute);
+    margin-top: 3px;
+    line-height: 1.4;
+  }
+  .choice.selected .choice-desc { color: var(--text-dim); }
+
+  /* Text input */
+  input[type="text"], input[type="number"], textarea {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-family: "Noto Sans JP", sans-serif;
+    font-size: 13px;
+    width: 100%;
+    transition: border-color 0.15s;
+  }
+  input:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  textarea { resize: vertical; min-height: 80px; }
+
+  /* Tag input (keywords) */
+  .tag-input-wrap {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    min-height: 42px;
+  }
+  .tag {
+    background: rgba(232, 255, 71, 0.12);
+    border: 1px solid rgba(232, 255, 71, 0.4);
+    color: var(--accent);
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .tag .tag-x {
+    cursor: pointer;
+    color: var(--text-mute);
+    font-weight: 700;
+  }
+  .tag .tag-x:hover { color: var(--danger); }
+  .tag-input-wrap input {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    flex: 1;
+    min-width: 100px;
+    padding: 4px;
+    font-size: 13px;
+  }
+  .tag-input-wrap input:focus { outline: none; }
+
+  /* Sliders / range (盛り上がりカーブ) */
+  .curve-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .curve-row {
+    display: grid;
+    grid-template-columns: 110px 1fr 40px;
+    align-items: center;
+    gap: 12px;
+    background: var(--bg-card);
+    padding: 8px 12px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+  }
+  .curve-row label {
+    font-family: "DM Mono", monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .curve-row input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent);
+  }
+  .curve-row .curve-val {
+    font-family: "DM Mono", monospace;
+    color: var(--accent);
+    text-align: right;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .curve-bars {
+    margin-top: 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 10px;
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    height: 100px;
+  }
+  .curve-bars .bar {
+    flex: 1;
+    background: linear-gradient(180deg, var(--accent), var(--accent-dim));
+    border-radius: 2px 2px 0 0;
+    position: relative;
+    transition: height 0.2s;
+    min-height: 4px;
+  }
+  .curve-bars .bar::after {
+    content: attr(data-label);
+    position: absolute;
+    bottom: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: "DM Mono", monospace;
+    font-size: 9px;
+    color: var(--text-mute);
+    white-space: nowrap;
+  }
+
+  /* Sub-fields grid */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 700px) {
+    .grid-2 { grid-template-columns: 1fr; }
+    .curve-row { grid-template-columns: 100px 1fr 36px; }
+  }
+
+  /* Footer Action Bar */
+  .footer-bar {
+    position: sticky;
+    bottom: 0;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    padding: 16px 24px;
+    margin: 32px -24px -80px -24px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    backdrop-filter: blur(8px);
+  }
+
+  /* Output Modal */
+  .modal-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 20px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--bg-elev);
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    padding: 24px;
+    max-width: 700px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  .modal h3 {
+    font-family: "Syne", sans-serif;
+    margin-bottom: 14px;
+    color: var(--accent);
+  }
+  .modal pre {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px;
+    font-family: "DM Mono", monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin-bottom: 14px;
+    max-height: 50vh;
+    overflow-y: auto;
+  }
+  .modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--accent);
+    color: var(--bg);
+    padding: 10px 24px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 13px;
+    transition: transform 0.3s ease;
+    z-index: 200;
+    font-family: "DM Mono", monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* Print */
+  @media print {
+    body { background: white; color: black; }
+    .project-bar, .footer-bar, button { display: none !important; }
+    .section {
+      background: white;
+      border: 1px solid #ccc;
+      page-break-inside: avoid;
+    }
+    .choice.selected {
+      background: white;
+      border: 2px solid black;
+      color: black;
+    }
+    .choice:not(.selected) { display: none; }
+    .section-num { color: black; background: #eee; border-color: #ccc; }
+    h1, h2 { color: black; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>SONG <span class="accent">PLANNER</span></h1>
+    <div class="sub">// 8-axis composition planner v1.0</div>
+  </header>
+
+  <!-- Project Management Bar -->
+  <div class="project-bar">
+    <label>PROJECT</label>
+    <select id="projectSelect">
+      <option value="">-- 新規作成 --</option>
+    </select>
+    <input type="text" id="projectName" placeholder="作品名を入力" />
+    <button onclick="saveProject()">SAVE</button>
+    <button onclick="newProject()">NEW</button>
+    <button class="danger" onclick="deleteProject()">DELETE</button>
+    <div class="spacer"></div>
+    <label>TEMPLATE</label>
+    <select id="templateSelect" onchange="applyTemplate(this.value)">
+      <option value="">-- テンプレート --</option>
+      <option value="idol">アイドルJ-POP（=LOVE系）</option>
+      <option value="citypop">シティポップ</option>
+      <option value="ballad">バラード</option>
+      <option value="edm">EDM/フューチャーベース</option>
+      <option value="rock">バンドロック</option>
+      <option value="anime">アニソン</option>
+    </select>
+  </div>
+
+  <!-- Section 1: コンセプト -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">01</span>
+      <h2>コンセプト</h2>
+    </div>
+    <div class="desc">曲の方向性を決める最上位の設計。これが決まると後続の全要素が絞られる。</div>
+    <div class="example">夏の終わり、片思いの相手と最後に会う日 / 「夕焼け」「君の横顔」「セミの声」「8月31日」</div>
+
+    <div class="field">
+      <label class="field-label">テーマ</label>
+      <div class="choices" id="theme">
+        <div class="choice" data-val="恋愛・片思い"><div class="choice-label">恋愛・片思い</div><div class="choice-desc">届かない想い、切なさ、憧れ</div></div>
+        <div class="choice" data-val="恋愛・両思い"><div class="choice-label">恋愛・両思い</div><div class="choice-desc">幸福、共有、温かさ</div></div>
+        <div class="choice" data-val="失恋・別れ"><div class="choice-label">失恋・別れ</div><div class="choice-desc">喪失、立ち直り、後悔</div></div>
+        <div class="choice" data-val="青春・友情"><div class="choice-label">青春・友情</div><div class="choice-desc">仲間、学校、思い出</div></div>
+        <div class="choice" data-val="夢・目標"><div class="choice-label">夢・目標</div><div class="choice-desc">挑戦、決意、未来</div></div>
+        <div class="choice" data-val="日常・癒し"><div class="choice-label">日常・癒し</div><div class="choice-desc">小さな幸せ、何気ない時間</div></div>
+        <div class="choice" data-val="季節・風景"><div class="choice-label">季節・風景</div><div class="choice-desc">情景描写、ノスタルジー</div></div>
+        <div class="choice" data-val="応援・エール"><div class="choice-label">応援・エール</div><div class="choice-desc">前向き、励まし、力強さ</div></div>
+        <div class="choice" data-val="自分探し・葛藤"><div class="choice-label">自分探し・葛藤</div><div class="choice-desc">内省、迷い、成長</div></div>
+        <div class="choice" data-val="ファンタジー・幻想"><div class="choice-label">ファンタジー・幻想</div><div class="choice-desc">非現実、夢、世界観</div></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">感情の方向性</label>
+      <div class="choices" id="emotion">
+        <div class="choice" data-val="明るい・楽しい"><div class="choice-label">明るい・楽しい</div></div>
+        <div class="choice" data-val="切ない・儚い"><div class="choice-label">切ない・儚い</div></div>
+        <div class="choice" data-val="力強い・熱い"><div class="choice-label">力強い・熱い</div></div>
+        <div class="choice" data-val="クール・大人っぽい"><div class="choice-label">クール・大人っぽい</div></div>
+        <div class="choice" data-val="ノスタルジック"><div class="choice-label">ノスタルジック</div></div>
+        <div class="choice" data-val="幻想的・神秘的"><div class="choice-label">幻想的・神秘的</div></div>
+        <div class="choice" data-val="疾走感・解放感"><div class="choice-label">疾走感・解放感</div></div>
+        <div class="choice" data-val="哀愁・憂い"><div class="choice-label">哀愁・憂い</div></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">季節・場面</label>
+      <div class="choices compact" id="season">
+        <div class="choice" data-val="春・桜"><div class="choice-label">春・桜</div></div>
+        <div class="choice" data-val="夏・海"><div class="choice-label">夏・海</div></div>
+        <div class="choice" data-val="夏・夜"><div class="choice-label">夏・夜</div></div>
+        <div class="choice" data-val="秋・夕暮れ"><div class="choice-label">秋・夕暮れ</div></div>
+        <div class="choice" data-val="冬・雪"><div class="choice-label">冬・雪</div></div>
+        <div class="choice" data-val="放課後・教室"><div class="choice-label">放課後・教室</div></div>
+        <div class="choice" data-val="街・夜景"><div class="choice-label">街・夜景</div></div>
+        <div class="choice" data-val="部屋・一人"><div class="choice-label">部屋・一人</div></div>
+        <div class="choice" data-val="駅・別れ"><div class="choice-label">駅・別れ</div></div>
+        <div class="choice" data-val="ライブ・ステージ"><div class="choice-label">ライブ・ステージ</div></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">主人公の状況・状態</label>
+      <textarea id="situation" placeholder="例: 片思い中、振り向いてもらえた、卒業前夜、失恋直後、初めてのライブ前など"></textarea>
+    </div>
+
+    <div class="field">
+      <label class="field-label">キーワード（3〜5個推奨）</label>
+      <div class="tag-input-wrap" id="keywordWrap">
+        <input type="text" id="keywordInput" placeholder="Enterで追加" />
+      </div>
+      <div class="field-hint">例: 「君」「光」「夏」「青」「夕焼け」</div>
+    </div>
+  </div>
+
+  <!-- Section 2: テンポ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">02</span>
+      <h2>テンポ・リズム性格</h2>
+    </div>
+    <div class="desc">曲の体温を決める要素。BPM、拍子、ノリの種類で印象が大きく変わる。</div>
+    <div class="example">165BPM、4/4、イーブン、4つ打ち寄り（=LOVE系疾走感）</div>
+
+    <div class="grid-2">
+      <div class="field">
+        <label class="field-label">BPM（テンポ）</label>
+        <div class="choices compact" id="bpm">
+          <div class="choice" data-val="60-75"><div class="choice-label">60-75</div><div class="choice-desc">スローバラード</div></div>
+          <div class="choice" data-val="76-90"><div class="choice-label">76-90</div><div class="choice-desc">バラード</div></div>
+          <div class="choice" data-val="91-110"><div class="choice-label">91-110</div><div class="choice-desc">ミドル</div></div>
+          <div class="choice" data-val="111-130"><div class="choice-label">111-130</div><div class="choice-desc">ミドルアップ</div></div>
+          <div class="choice" data-val="131-150"><div class="choice-label">131-150</div><div class="choice-desc">アップ</div></div>
+          <div class="choice" data-val="151-180"><div class="choice-label">151-180</div><div class="choice-desc">疾走系</div></div>
+          <div class="choice" data-val="180+"><div class="choice-label">180+</div><div class="choice-desc">パンク・速い</div></div>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">具体的なBPM（任意）</label>
+        <input type="number" id="bpmExact" placeholder="例: 165" min="40" max="240" />
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">拍子</label>
+      <div class="choices compact" id="meter">
+        <div class="choice" data-val="4/4"><div class="choice-label">4/4</div><div class="choice-desc">標準</div></div>
+        <div class="choice" data-val="3/4"><div class="choice-label">3/4</div><div class="choice-desc">ワルツ</div></div>
+        <div class="choice" data-val="6/8"><div class="choice-label">6/8</div><div class="choice-desc">流れる感じ</div></div>
+        <div class="choice" data-val="5/4"><div class="choice-label">5/4</div><div class="choice-desc">変拍子</div></div>
+        <div class="choice" data-val="7/8"><div class="choice-label">7/8</div><div class="choice-desc">プログレ</div></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">ノリの種類</label>
+      <div class="choices" id="groove">
+        <div class="choice" data-val="イーブン"><div class="choice-label">イーブン</div><div class="choice-desc">普通の8分・16分</div></div>
+        <div class="choice" data-val="シャッフル"><div class="choice-label">シャッフル</div><div class="choice-desc">跳ねる、3連系</div></div>
+        <div class="choice" data-val="ハーフタイム"><div class="choice-label">ハーフタイム</div><div class="choice-desc">半分のテンポ感</div></div>
+        <div class="choice" data-val="ダブルタイム"><div class="choice-label">ダブルタイム</div><div class="choice-desc">倍のテンポ感</div></div>
+        <div class="choice" data-val="スイング"><div class="choice-label">スイング</div><div class="choice-desc">ジャズ的</div></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">グルーヴの方向性</label>
+      <div class="choices" id="grooveDir">
+        <div class="choice" data-val="4つ打ち"><div class="choice-label">4つ打ち</div><div class="choice-desc">EDM・ダンス系</div></div>
+        <div class="choice" data-val="8ビート"><div class="choice-label">8ビート</div><div class="choice-desc">ロック・J-POP定番</div></div>
+        <div class="choice" data-val="16ビート"><div class="choice-label">16ビート</div><div class="choice-desc">ファンク・R&B</div></div>
+        <div class="choice" data-val="ヒップホップ"><div class="choice-label">ヒップホップ</div><div class="choice-desc">トラップ・ブーンバップ</div></div>
+        <div class="choice" data-val="ボサノヴァ"><div class="choice-label">ボサノヴァ</div><div class="choice-desc">ラテン</div></div>
+        <div class="choice" data-val="シャッフルビート"><div class="choice-label">シャッフルビート</div><div class="choice-desc">スイング</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 3: キー -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">03</span>
+      <h2>キー・調性</h2>
+    </div>
+    <div class="desc">キーの選択で曲の印象が微妙に変わる。ボーカリストの音域に合わせるのも重要。</div>
+    <div class="example">Eメジャー（輝かしい）、ラスサビでF#メジャーへ転調</div>
+
+    <div class="field">
+      <label class="field-label">メインキー</label>
+      <div class="choices compact" id="mainKey">
+        <div class="choice" data-val="Cメジャー"><div class="choice-label">C major</div><div class="choice-desc">素直・明るい</div></div>
+        <div class="choice" data-val="Gメジャー"><div class="choice-label">G major</div><div class="choice-desc">温かい・青空</div></div>
+        <div class="choice" data-val="Dメジャー"><div class="choice-label">D major</div><div class="choice-desc">活発・祝祭</div></div>
+        <div class="choice" data-val="Aメジャー"><div class="choice-label">A major</div><div class="choice-desc">若々しい</div></div>
+        <div class="choice" data-val="Eメジャー"><div class="choice-label">E major</div><div class="choice-desc">輝かしい</div></div>
+        <div class="choice" data-val="Bメジャー"><div class="choice-label">B major</div><div class="choice-desc">情熱的</div></div>
+        <div class="choice" data-val="F#メジャー"><div class="choice-label">F# major</div><div class="choice-desc">勝利感</div></div>
+        <div class="choice" data-val="Fメジャー"><div class="choice-label">F major</div><div class="choice-desc">優しい</div></div>
+        <div class="choice" data-val="B♭メジャー"><div class="choice-label">B♭ major</div><div class="choice-desc">包容</div></div>
+        <div class="choice" data-val="E♭メジャー"><div class="choice-label">E♭ major</div><div class="choice-desc">英雄的</div></div>
+        <div class="choice" data-val="Aマイナー"><div class="choice-label">A minor</div><div class="choice-desc">切ない</div></div>
+        <div class="choice" data-val="Eマイナー"><div class="choice-label">E minor</div><div class="choice-desc">哀愁・ロック</div></div>
+        <div class="choice" data-val="Dマイナー"><div class="choice-label">D minor</div><div class="choice-desc">悲劇・深刻</div></div>
+        <div class="choice" data-val="Bマイナー"><div class="choice-label">B minor</div><div class="choice-desc">瞑想的</div></div>
+        <div class="choice" data-val="F#マイナー"><div class="choice-label">F# minor</div><div class="choice-desc">情熱・激情</div></div>
+        <div class="choice" data-val="C#マイナー"><div class="choice-label">C# minor</div><div class="choice-desc">劇的</div></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">転調の有無・場所</label>
+      <div class="choices" id="modulation">
+        <div class="choice" data-val="なし"><div class="choice-label">転調なし</div><div class="choice-desc">最後まで同じキー</div></div>
+        <div class="choice" data-val="ラスサビ半音上げ"><div class="choice-label">ラスサビ半音上げ</div><div class="choice-desc">王道</div></div>
+        <div class="choice" data-val="ラスサビ全音上げ"><div class="choice-label">ラスサビ全音上げ</div><div class="choice-desc">劇的</div></div>
+        <div class="choice" data-val="Cメロで転調"><div class="choice-label">Cメロで転調</div><div class="choice-desc">展開重視</div></div>
+        <div class="choice" data-val="サビで転調"><div class="choice-label">サビで転調</div><div class="choice-desc">サビ強調</div></div>
+        <div class="choice" data-val="同主調・平行調へ"><div class="choice-label">同主調・平行調</div><div class="choice-desc">マイナー↔メジャー</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 4: 構成 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">04</span>
+      <h2>構成</h2>
+    </div>
+    <div class="desc">曲の設計図。セクションの配置と長さで物語の流れが決まる。</div>
+    <div class="example">王道型（イントロ→A→B→S→間奏→A2→B2→S2→C→落S→ラスS→アウトロ）</div>
+
+    <div class="field">
+      <label class="field-label">構成パターン</label>
+      <div class="choices" id="structure">
+        <div class="choice" data-val="王道J-POP型"><div class="choice-label">王道J-POP型</div><div class="choice-desc">Int-A-B-S-間-A2-B2-S2-C-落S-ラスS-Out</div></div>
+        <div class="choice" data-val="サビ始まり型"><div class="choice-label">サビ始まり型</div><div class="choice-desc">サビから入る、印象的</div></div>
+        <div class="choice" data-val="シンプル型"><div class="choice-label">シンプル型</div><div class="choice-desc">A-B-S×2、Cメロなし</div></div>
+        <div class="choice" data-val="ABCサビ型"><div class="choice-label">ABCサビ型</div><div class="choice-desc">アニソン定番、Bでテンション上昇</div></div>
+        <div class="choice" data-val="サビ繰り返し型"><div class="choice-label">サビ繰り返し型</div><div class="choice-desc">K-POP寄り</div></div>
+        <div class="choice" data-val="2サビ型"><div class="choice-label">2サビ型</div><div class="choice-desc">サビが2種類ある</div></div>
+        <div class="choice" data-val="バラード型"><div class="choice-label">バラード型</div><div class="choice-desc">A-B-S-A-B-S-C-S</div></div>
+        <div class="choice" data-val="変則・自由型"><div class="choice-label">変則・自由型</div><div class="choice-desc">独自構成</div></div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="field">
+        <label class="field-label">想定される全体の長さ</label>
+        <div class="choices compact" id="totalLength">
+          <div class="choice" data-val="1:30以下"><div class="choice-label">1:30以下</div><div class="choice-desc">ショート</div></div>
+          <div class="choice" data-val="2:30前後"><div class="choice-label">2:30前後</div><div class="choice-desc">TikTok向け</div></div>
+          <div class="choice" data-val="3:30前後"><div class="choice-label">3:30前後</div><div class="choice-desc">標準</div></div>
+          <div class="choice" data-val="4:30前後"><div class="choice-label">4:30前後</div><div class="choice-desc">フルサイズ</div></div>
+          <div class="choice" data-val="5:00以上"><div class="choice-label">5:00以上</div><div class="choice-desc">大作</div></div>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">特徴的な仕掛け</label>
+        <div class="choices compact" id="trick">
+          <div class="choice" data-val="落ちサビあり"><div class="choice-label">落ちサビあり</div></div>
+          <div class="choice" data-val="ブレイクあり"><div class="choice-label">ブレイクあり</div></div>
+          <div class="choice" data-val="ダブルサビ"><div class="choice-label">ダブルサビ</div></div>
+          <div class="choice" data-val="ラップパート"><div class="choice-label">ラップパート</div></div>
+          <div class="choice" data-val="アカペラ部分"><div class="choice-label">アカペラ部分</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">セクション構成メモ</label>
+      <textarea id="sectionMemo" placeholder="例: イントロ8小節→Aメロ16→Bメロ8→サビ16→間奏8..."></textarea>
+    </div>
+  </div>
+
+  <!-- Section 5: メロディ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">05</span>
+      <h2>メロディ設計</h2>
+    </div>
+    <div class="desc">コード進行と並ぶ楽曲の核。音域・最高音・動き方を事前に決めておく。</div>
+    <div class="example">音域 C4-E5（1オクターブ半）、最高音はサビ最後のE5、跳躍少なめで歌いやすく</div>
+
+    <div class="grid-2">
+      <div class="field">
+        <label class="field-label">想定音域</label>
+        <div class="choices compact" id="vocalRange">
+          <div class="choice" data-val="1オクターブ"><div class="choice-label">1 oct</div><div class="choice-desc">歌いやすい</div></div>
+          <div class="choice" data-val="1.5オクターブ"><div class="choice-label">1.5 oct</div><div class="choice-desc">標準</div></div>
+          <div class="choice" data-val="2オクターブ"><div class="choice-label">2 oct</div><div class="choice-desc">広い</div></div>
+          <div class="choice" data-val="2オクターブ以上"><div class="choice-label">2 oct+</div><div class="choice-desc">難曲</div></div>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">最高音の位置</label>
+        <div class="choices compact" id="highNotePos">
+          <div class="choice" data-val="サビ頭"><div class="choice-label">サビ頭</div></div>
+          <div class="choice" data-val="サビ中盤"><div class="choice-label">サビ中盤</div></div>
+          <div class="choice" data-val="サビ最後"><div class="choice-label">サビ最後</div></div>
+          <div class="choice" data-val="ラスサビのみ"><div class="choice-label">ラスサビのみ</div></div>
+          <div class="choice" data-val="Bメロ最後"><div class="choice-label">Bメロ最後</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">メロディの動き方</label>
+      <div class="choices" id="melodyMove">
+        <div class="choice" data-val="順次進行中心"><div class="choice-label">順次進行中心</div><div class="choice-desc">隣接音が多い、歌いやすい</div></div>
+        <div class="choice" data-val="跳躍多め"><div class="choice-label">跳躍多め</div><div class="choice-desc">ドラマチック、印象的</div></div>
+        <div class="choice" data-val="混合バランス型"><div class="choice-label">混合バランス型</div><div class="choice-desc">標準</div></div>
+        <div class="choice" data-val="リフレイン重視"><div class="choice-label">リフレイン重視</div><div class="choice-desc">同じフレーズの繰り返し</div></div>
+        <div class="choice" data-val="ラップ的"><div class="choice-label">ラップ的</div><div class="choice-desc">音程変化少ない、リズム重視</div></div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="field">
+        <label class="field-label">休符の量</label>
+        <div class="choices compact" id="restAmount">
+          <div class="choice" data-val="多い"><div class="choice-label">多い</div><div class="choice-desc">呼吸する歌</div></div>
+          <div class="choice" data-val="標準"><div class="choice-label">標準</div></div>
+          <div class="choice" data-val="少ない"><div class="choice-label">少ない</div><div class="choice-desc">情報量多い</div></div>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">音価のリズム</label>
+        <div class="choices compact" id="rhythmDensity">
+          <div class="choice" data-val="ロング中心"><div class="choice-label">ロング中心</div></div>
+          <div class="choice" data-val="8分中心"><div class="choice-label">8分中心</div></div>
+          <div class="choice" data-val="16分多め"><div class="choice-label">16分多め</div></div>
+          <div class="choice" data-val="シンコペ多め"><div class="choice-label">シンコペ多め</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 6: アレンジ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">06</span>
+      <h2>アレンジ・楽器構成</h2>
+    </div>
+    <div class="desc">どんな楽器で曲を組み立てるか。ジャンルと主役楽器を決める。</div>
+    <div class="example">アイドルJ-POP寄り、エレキギター主役、シンセパッド・ベル装飾、生バンド寄り</div>
+
+    <div class="field">
+      <label class="field-label">ジャンル感</label>
+      <div class="choices" id="genre">
+        <div class="choice" data-val="アイドルJ-POP"><div class="choice-label">アイドルJ-POP</div><div class="choice-desc">=LOVE、坂道系</div></div>
+        <div class="choice" data-val="バンドJ-POP"><div class="choice-label">バンドJ-POP</div><div class="choice-desc">Mr.Children、back number</div></div>
+        <div class="choice" data-val="シティポップ"><div class="choice-label">シティポップ</div><div class="choice-desc">大人っぽい都会的</div></div>
+        <div class="choice" data-val="EDM/フューチャーベース"><div class="choice-label">EDM系</div><div class="choice-desc">電子寄り</div></div>
+        <div class="choice" data-val="アニソン"><div class="choice-label">アニソン</div><div class="choice-desc">疾走感+ドラマ性</div></div>
+        <div class="choice" data-val="R&B/ソウル"><div class="choice-label">R&B</div><div class="choice-desc">グルーヴィー</div></div>
+        <div class="choice" data-val="ロック"><div class="choice-label">ロック</div><div class="choice-desc">ギター主役</div></div>
+        <div class="choice" data-val="フォーク・アコースティック"><div class="choice-label">フォーク</div><div class="choice-desc">アコギ主体</div></div>
+        <div class="choice" data-val="シネマティック"><div class="choice-label">シネマティック</div><div class="choice-desc">壮大、オーケストラ</div></div>
+        <div class="choice" data-val="K-POP"><div class="choice-label">K-POP</div><div class="choice-desc">現代的</div></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">主役楽器</label>
+      <div class="choices" id="leadInstr">
+        <div class="choice" data-val="エレキギター"><div class="choice-label">エレキギター</div></div>
+        <div class="choice" data-val="アコースティックギター"><div class="choice-label">アコギ</div></div>
+        <div class="choice" data-val="ピアノ"><div class="choice-label">ピアノ</div></div>
+        <div class="choice" data-val="エレピ"><div class="choice-label">エレピ</div></div>
+        <div class="choice" data-val="シンセ"><div class="choice-label">シンセ</div></div>
+        <div class="choice" data-val="ストリングス"><div class="choice-label">ストリングス</div></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">補助楽器（複数選択可）</label>
+      <div class="choices" id="subInstr" data-multi="true">
+        <div class="choice" data-val="ストリングス"><div class="choice-label">ストリングス</div></div>
+        <div class="choice" data-val="ブラス"><div class="choice-label">ブラス</div></div>
+        <div class="choice" data-val="シンセパッド"><div class="choice-label">シンセパッド</div></div>
+        <div class="choice" data-val="ベル/グロッケン"><div class="choice-label">ベル/グロッケン</div></div>
+        <div class="choice" data-val="シェイカー/タンバリン"><div class="choice-label">シェイカー/タンバリン</div></div>
+        <div class="choice" data-val="クラップ"><div class="choice-label">クラップ</div></div>
+        <div class="choice" data-val="アコギ装飾"><div class="choice-label">アコギ装飾</div></div>
+        <div class="choice" data-val="ピアノ装飾"><div class="choice-label">ピアノ装飾</div></div>
+        <div class="choice" data-val="ボーカルチョップ"><div class="choice-label">ボーカルチョップ</div></div>
+        <div class="choice" data-val="FX素材"><div class="choice-label">FX素材</div></div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="field">
+        <label class="field-label">生楽器 vs 打ち込み</label>
+        <div class="choices compact" id="acVsDigi">
+          <div class="choice" data-val="完全生バンド寄り"><div class="choice-label">生バンド寄り</div></div>
+          <div class="choice" data-val="ハイブリッド・生多め"><div class="choice-label">ハイブリッド生多め</div></div>
+          <div class="choice" data-val="ハイブリッド・打多め"><div class="choice-label">ハイブリッド打多め</div></div>
+          <div class="choice" data-val="完全打ち込み"><div class="choice-label">完全打ち込み</div></div>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">音色の質感</label>
+        <div class="choices compact" id="texture">
+          <div class="choice" data-val="温かい"><div class="choice-label">温かい</div></div>
+          <div class="choice" data-val="冷たい・透明"><div class="choice-label">冷たい・透明</div></div>
+          <div class="choice" data-val="明るい・派手"><div class="choice-label">明るい・派手</div></div>
+          <div class="choice" data-val="暗い・重厚"><div class="choice-label">暗い・重厚</div></div>
+          <div class="choice" data-val="アナログ・ヴィンテージ"><div class="choice-label">アナログ</div></div>
+          <div class="choice" data-val="デジタル・モダン"><div class="choice-label">デジタル</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 7: 盛り上がりカーブ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">07</span>
+      <h2>ダイナミクス・盛り上がりカーブ</h2>
+    </div>
+    <div class="desc">セクションごとの盛り上がり度を1〜10で設定。グラフが波打つ構成が理想。</div>
+    <div class="example">Int:4 → A:3 → B:5 → S:8 → 間:6 → A2:4 → B2:6 → S2:8 → C:5 → 落S:2 → ラスS:10</div>
+
+    <div class="curve-grid" id="curveGrid">
+      <!-- generated by JS -->
+    </div>
+    <div class="curve-bars" id="curveBars">
+      <!-- generated by JS -->
+    </div>
+  </div>
+
+  <!-- Section 8: フック -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">08</span>
+      <h2>フック（記憶のフック）</h2>
+    </div>
+    <div class="desc">リスナーの脳に焼き付く要素。最低1つ、できれば3つ仕込む。</div>
+    <div class="example">①メロディフック「ねえ、君に伝えたい」 ②アコギの特徴的アルペジオ ③ラスサビ半音転調</div>
+
+    <div class="field">
+      <label class="field-label">フックの種類（複数選択可）</label>
+      <div class="choices" id="hookType" data-multi="true">
+        <div class="choice" data-val="メロディフック"><div class="choice-label">メロディフック</div><div class="choice-desc">サビ頭の印象的なメロディ</div></div>
+        <div class="choice" data-val="歌詞フック"><div class="choice-label">歌詞フック</div><div class="choice-desc">繰り返される印象的な言葉</div></div>
+        <div class="choice" data-val="リフフック"><div class="choice-label">リフフック</div><div class="choice-desc">特徴的な楽器のフレーズ</div></div>
+        <div class="choice" data-val="リズムフック"><div class="choice-label">リズムフック</div><div class="choice-desc">特徴的なリズムパターン</div></div>
+        <div class="choice" data-val="音色フック"><div class="choice-label">音色フック</div><div class="choice-desc">特徴的なシンセ音、ボーカル処理</div></div>
+        <div class="choice" data-val="転調フック"><div class="choice-label">転調フック</div><div class="choice-desc">ラスサビ半音上げ等</div></div>
+        <div class="choice" data-val="掛け合いフック"><div class="choice-label">掛け合いフック</div><div class="choice-desc">印象的なコール&レスポンス</div></div>
+        <div class="choice" data-val="ブレイクフック"><div class="choice-label">ブレイクフック</div><div class="choice-desc">印象的な無音・ドロップ</div></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">フック1（具体的な内容）</label>
+      <textarea id="hook1" placeholder="例: サビ頭のメロディラインG-A-B-D（4音の上行）、繰り返し歌う"></textarea>
+    </div>
+
+    <div class="field">
+      <label class="field-label">フック2（任意）</label>
+      <textarea id="hook2" placeholder="例: 全編で鳴る特徴的なベルのアルペジオ"></textarea>
+    </div>
+
+    <div class="field">
+      <label class="field-label">フック3（任意）</label>
+      <textarea id="hook3" placeholder="例: ラスサビでF→F#へ半音転調"></textarea>
+    </div>
+  </div>
+
+  <!-- Footer Action Bar -->
+  <div class="footer-bar">
+    <button onclick="exportText()">TEXT EXPORT</button>
+    <button onclick="exportJSON()">JSON DOWNLOAD</button>
+    <button onclick="window.print()">PRINT / PDF</button>
+    <button class="primary" onclick="saveProject()">💾 SAVE</button>
+  </div>
+
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h3 id="modalTitle">Export</h3>
+    <pre id="modalContent"></pre>
+    <div class="modal-actions">
+      <button onclick="copyModalContent()">📋 COPY</button>
+      <button class="primary" onclick="closeModal()">CLOSE</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ==================== State ====================
+const SECTIONS_FOR_CURVE = ['Intro','A','B','Sabi','間奏','A2','B2','Sabi2','C','落サビ','ラスサビ','Outro'];
+let curveValues = SECTIONS_FOR_CURVE.map(()=>5);
+let keywords = [];
+
+// ==================== Utility ====================
+function $(sel) { return document.querySelector(sel); }
+function $$(sel) { return document.querySelectorAll(sel); }
+
+function showToast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ==================== Choices ====================
+function setupChoices() {
+  $$('.choices').forEach(group => {
+    const isMulti = group.dataset.multi === 'true';
+    group.querySelectorAll('.choice').forEach(ch => {
+      ch.addEventListener('click', () => {
+        if (isMulti) {
+          ch.classList.toggle('selected');
+        } else {
+          group.querySelectorAll('.choice').forEach(c => c.classList.remove('selected'));
+          ch.classList.add('selected');
+        }
+      });
+    });
+  });
+}
+
+function getSingleChoice(groupId) {
+  const sel = document.querySelector('#' + groupId + ' .choice.selected');
+  return sel ? sel.dataset.val : '';
+}
+function getMultiChoice(groupId) {
+  return [...document.querySelectorAll('#' + groupId + ' .choice.selected')].map(c => c.dataset.val);
+}
+function setSingleChoice(groupId, val) {
+  const group = document.getElementById(groupId);
+  if (!group) return;
+  group.querySelectorAll('.choice').forEach(c => {
+    c.classList.toggle('selected', c.dataset.val === val);
+  });
+}
+function setMultiChoice(groupId, vals) {
+  const group = document.getElementById(groupId);
+  if (!group) return;
+  const arr = Array.isArray(vals) ? vals : [];
+  group.querySelectorAll('.choice').forEach(c => {
+    c.classList.toggle('selected', arr.includes(c.dataset.val));
+  });
+}
+
+// ==================== Tag Input (Keywords) ====================
+function renderKeywords() {
+  const wrap = $('#keywordWrap');
+  const input = $('#keywordInput');
+  wrap.querySelectorAll('.tag').forEach(t => t.remove());
+  keywords.forEach((kw, i) => {
+    const t = document.createElement('span');
+    t.className = 'tag';
+    t.innerHTML = kw + ' <span class="tag-x" data-i="'+i+'">×</span>';
+    wrap.insertBefore(t, input);
+  });
+  wrap.querySelectorAll('.tag-x').forEach(x => {
+    x.onclick = () => { keywords.splice(parseInt(x.dataset.i), 1); renderKeywords(); };
+  });
+}
+function setupKeywordInput() {
+  const input = $('#keywordInput');
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const v = input.value.trim();
+      if (v && !keywords.includes(v)) {
+        keywords.push(v);
+        renderKeywords();
+      }
+      input.value = '';
+    }
+  });
+}
+
+// ==================== Dynamics Curve ====================
+function setupCurve() {
+  const grid = $('#curveGrid');
+  grid.innerHTML = '';
+  SECTIONS_FOR_CURVE.forEach((name, i) => {
+    const row = document.createElement('div');
+    row.className = 'curve-row';
+    row.innerHTML = `
+      <label>${name}</label>
+      <input type="range" min="0" max="10" value="${curveValues[i]}" data-i="${i}" />
+      <span class="curve-val" id="curveVal${i}">${curveValues[i]}</span>
+    `;
+    grid.appendChild(row);
+  });
+  grid.querySelectorAll('input[type="range"]').forEach(r => {
+    r.addEventListener('input', () => {
+      const i = parseInt(r.dataset.i);
+      curveValues[i] = parseInt(r.value);
+      $('#curveVal'+i).textContent = r.value;
+      renderCurveBars();
+    });
+  });
+  renderCurveBars();
+}
+function renderCurveBars() {
+  const bars = $('#curveBars');
+  bars.innerHTML = '';
+  curveValues.forEach((v, i) => {
+    const b = document.createElement('div');
+    b.className = 'bar';
+    b.style.height = (v * 8 + 4) + 'px';
+    b.dataset.label = SECTIONS_FOR_CURVE[i];
+    bars.appendChild(b);
+  });
+}
+
+// ==================== Project (LocalStorage) ====================
+const STORAGE_KEY = 'songPlanner_v1';
+function loadAll() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); }
+  catch { return {}; }
+}
+function saveAll(data) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function getCurrentData() {
+  return {
+    name: $('#projectName').value.trim() || 'Untitled',
+    concept: {
+      theme: getSingleChoice('theme'),
+      emotion: getSingleChoice('emotion'),
+      season: getSingleChoice('season'),
+      situation: $('#situation').value,
+      keywords: [...keywords]
+    },
+    tempo: {
+      bpmRange: getSingleChoice('bpm'),
+      bpmExact: $('#bpmExact').value,
+      meter: getSingleChoice('meter'),
+      groove: getSingleChoice('groove'),
+      grooveDir: getSingleChoice('grooveDir')
+    },
+    key: {
+      main: getSingleChoice('mainKey'),
+      modulation: getSingleChoice('modulation')
+    },
+    structure: {
+      pattern: getSingleChoice('structure'),
+      length: getSingleChoice('totalLength'),
+      trick: getSingleChoice('trick'),
+      memo: $('#sectionMemo').value
+    },
+    melody: {
+      range: getSingleChoice('vocalRange'),
+      highNote: getSingleChoice('highNotePos'),
+      move: getSingleChoice('melodyMove'),
+      rest: getSingleChoice('restAmount'),
+      density: getSingleChoice('rhythmDensity')
+    },
+    arrange: {
+      genre: getSingleChoice('genre'),
+      lead: getSingleChoice('leadInstr'),
+      sub: getMultiChoice('subInstr'),
+      acVsDigi: getSingleChoice('acVsDigi'),
+      texture: getSingleChoice('texture')
+    },
+    dynamics: {
+      curve: [...curveValues],
+      sections: SECTIONS_FOR_CURVE
+    },
+    hook: {
+      types: getMultiChoice('hookType'),
+      hook1: $('#hook1').value,
+      hook2: $('#hook2').value,
+      hook3: $('#hook3').value
+    },
+    savedAt: new Date().toISOString()
+  };
+}
+
+function applyData(d) {
+  if (!d) return;
+  $('#projectName').value = d.name || '';
+  setSingleChoice('theme', d.concept?.theme);
+  setSingleChoice('emotion', d.concept?.emotion);
+  setSingleChoice('season', d.concept?.season);
+  $('#situation').value = d.concept?.situation || '';
+  keywords = [...(d.concept?.keywords || [])];
+  renderKeywords();
+
+  setSingleChoice('bpm', d.tempo?.bpmRange);
+  $('#bpmExact').value = d.tempo?.bpmExact || '';
+  setSingleChoice('meter', d.tempo?.meter);
+  setSingleChoice('groove', d.tempo?.groove);
+  setSingleChoice('grooveDir', d.tempo?.grooveDir);
+
+  setSingleChoice('mainKey', d.key?.main);
+  setSingleChoice('modulation', d.key?.modulation);
+
+  setSingleChoice('structure', d.structure?.pattern);
+  setSingleChoice('totalLength', d.structure?.length);
+  setSingleChoice('trick', d.structure?.trick);
+  $('#sectionMemo').value = d.structure?.memo || '';
+
+  setSingleChoice('vocalRange', d.melody?.range);
+  setSingleChoice('highNotePos', d.melody?.highNote);
+  setSingleChoice('melodyMove', d.melody?.move);
+  setSingleChoice('restAmount', d.melody?.rest);
+  setSingleChoice('rhythmDensity', d.melody?.density);
+
+  setSingleChoice('genre', d.arrange?.genre);
+  setSingleChoice('leadInstr', d.arrange?.lead);
+  setMultiChoice('subInstr', d.arrange?.sub);
+  setSingleChoice('acVsDigi', d.arrange?.acVsDigi);
+  setSingleChoice('texture', d.arrange?.texture);
+
+  curveValues = (d.dynamics?.curve && d.dynamics.curve.length === SECTIONS_FOR_CURVE.length)
+    ? [...d.dynamics.curve]
+    : SECTIONS_FOR_CURVE.map(()=>5);
+  setupCurve();
+
+  setMultiChoice('hookType', d.hook?.types);
+  $('#hook1').value = d.hook?.hook1 || '';
+  $('#hook2').value = d.hook?.hook2 || '';
+  $('#hook3').value = d.hook?.hook3 || '';
+}
+
+function refreshProjectSelect() {
+  const sel = $('#projectSelect');
+  const all = loadAll();
+  const current = sel.value;
+  sel.innerHTML = '<option value="">-- 新規作成 --</option>';
+  Object.keys(all).sort().forEach(k => {
+    const o = document.createElement('option');
+    o.value = k;
+    o.textContent = k;
+    sel.appendChild(o);
+  });
+  sel.value = current;
+}
+
+function saveProject() {
+  const data = getCurrentData();
+  if (!data.name || data.name === 'Untitled') {
+    showToast('作品名を入力してください');
+    $('#projectName').focus();
+    return;
+  }
+  const all = loadAll();
+  all[data.name] = data;
+  saveAll(all);
+  refreshProjectSelect();
+  $('#projectSelect').value = data.name;
+  showToast('保存しました: ' + data.name);
+}
+
+function newProject() {
+  if (!confirm('現在の入力をクリアして新規作成しますか？')) return;
+  document.querySelectorAll('.choice.selected').forEach(c => c.classList.remove('selected'));
+  ['situation','sectionMemo','hook1','hook2','hook3','projectName'].forEach(id => $('#'+id).value = '');
+  $('#bpmExact').value = '';
+  keywords = [];
+  renderKeywords();
+  curveValues = SECTIONS_FOR_CURVE.map(()=>5);
+  setupCurve();
+  $('#projectSelect').value = '';
+  $('#projectName').focus();
+}
+
+function deleteProject() {
+  const name = $('#projectSelect').value;
+  if (!name) { showToast('削除する作品を選択してください'); return; }
+  if (!confirm(name + ' を削除しますか？')) return;
+  const all = loadAll();
+  delete all[name];
+  saveAll(all);
+  refreshProjectSelect();
+  newProject();
+  showToast('削除しました');
+}
+
+// Project Select
+document.addEventListener('DOMContentLoaded', () => {
+  $('#projectSelect').addEventListener('change', e => {
+    const name = e.target.value;
+    if (!name) return;
+    const all = loadAll();
+    if (all[name]) applyData(all[name]);
+  });
+});
+
+// ==================== Templates ====================
+const TEMPLATES = {
+  idol: {
+    name: 'アイドルJ-POP テンプレ',
+    concept: { theme:'青春・友情', emotion:'明るい・楽しい', season:'夏・海', situation:'友達と過ごす最高の夏', keywords:['夏','青空','君','光'] },
+    tempo: { bpmRange:'151-180', bpmExact:'165', meter:'4/4', groove:'イーブン', grooveDir:'8ビート' },
+    key: { main:'Gメジャー', modulation:'ラスサビ半音上げ' },
+    structure: { pattern:'王道J-POP型', length:'3:30前後', trick:'落ちサビあり', memo:'Int8→A16→B8→S16→間8→A2 16→B2 8→S2 16→C16→落S8→ラスS20→Out8' },
+    melody: { range:'1.5オクターブ', highNote:'サビ最後', move:'混合バランス型', rest:'標準', density:'8分中心' },
+    arrange: { genre:'アイドルJ-POP', lead:'エレキギター', sub:['シンセパッド','ベル/グロッケン','ストリングス','シェイカー/タンバリン','クラップ','FX素材'], acVsDigi:'ハイブリッド・生多め', texture:'明るい・派手' },
+    dynamics: { curve:[4,3,5,8,6,4,6,8,5,2,10,4] },
+    hook: { types:['メロディフック','歌詞フック','転調フック'], hook1:'サビ頭の印象的な4音上行メロディ', hook2:'ベルの特徴的なアルペジオ', hook3:'ラスサビ半音転調' }
+  },
+  citypop: {
+    name: 'シティポップ テンプレ',
+    concept: { theme:'恋愛・両思い', emotion:'クール・大人っぽい', season:'街・夜景', situation:'夜のドライブ、隣に好きな人', keywords:['ネオン','夜','ドライブ','大人'] },
+    tempo: { bpmRange:'91-110', bpmExact:'108', meter:'4/4', groove:'イーブン', grooveDir:'16ビート' },
+    key: { main:'Fメジャー', modulation:'なし' },
+    structure: { pattern:'シンプル型', length:'4:30前後', trick:'', memo:'Int4→A16→B8→S16→間8→A2 16→B2 8→S2 16→Out8' },
+    melody: { range:'1.5オクターブ', highNote:'サビ中盤', move:'順次進行中心', rest:'多い', density:'シンコペ多め' },
+    arrange: { genre:'シティポップ', lead:'エレピ', sub:['ストリングス','シンセパッド','アコギ装飾','ベル/グロッケン'], acVsDigi:'ハイブリッド・生多め', texture:'アナログ・ヴィンテージ' },
+    dynamics: { curve:[3,3,5,7,6,4,6,7,5,3,8,3] },
+    hook: { types:['リフフック','音色フック'], hook1:'エレピの印象的なコードリフ', hook2:'ヴィンテージな音色感', hook3:'' }
+  },
+  ballad: {
+    name: 'バラード テンプレ',
+    concept: { theme:'失恋・別れ', emotion:'切ない・儚い', season:'秋・夕暮れ', situation:'最後に会う日、別れ際', keywords:['夕焼け','別れ','涙','想い'] },
+    tempo: { bpmRange:'76-90', bpmExact:'78', meter:'4/4', groove:'ハーフタイム', grooveDir:'8ビート' },
+    key: { main:'Cメジャー', modulation:'ラスサビ半音上げ' },
+    structure: { pattern:'バラード型', length:'4:30前後', trick:'落ちサビあり', memo:'Int8→A16→B8→S16→A2 16→B2 8→S2 16→C16→落S8→ラスS20→Out8' },
+    melody: { range:'1.5オクターブ', highNote:'ラスサビのみ', move:'順次進行中心', rest:'多い', density:'ロング中心' },
+    arrange: { genre:'バンドJ-POP', lead:'ピアノ', sub:['ストリングス','シンセパッド','アコギ装飾'], acVsDigi:'ハイブリッド・生多め', texture:'温かい' },
+    dynamics: { curve:[2,2,4,7,5,3,5,7,4,1,9,3] },
+    hook: { types:['メロディフック','歌詞フック'], hook1:'サビ頭の象徴的な歌詞「もう君に会えない」', hook2:'ピアノの特徴的なアルペジオ', hook3:'' }
+  },
+  edm: {
+    name: 'EDM/フューチャーベース テンプレ',
+    concept: { theme:'ファンタジー・幻想', emotion:'疾走感・解放感', season:'街・夜景', situation:'非現実の世界、夢の中', keywords:['光','スピード','解放','宇宙'] },
+    tempo: { bpmRange:'131-150', bpmExact:'140', meter:'4/4', groove:'イーブン', grooveDir:'4つ打ち' },
+    key: { main:'F#マイナー', modulation:'なし' },
+    structure: { pattern:'サビ繰り返し型', length:'3:30前後', trick:'ブレイクあり', memo:'Int8→A16→Build8→Drop16→Break8→A2 8→Build8→Drop16→Out8' },
+    melody: { range:'1オクターブ', highNote:'サビ頭', move:'リフレイン重視', rest:'標準', density:'16分多め' },
+    arrange: { genre:'EDM/フューチャーベース', lead:'シンセ', sub:['シンセパッド','ベル/グロッケン','ボーカルチョップ','FX素材'], acVsDigi:'完全打ち込み', texture:'デジタル・モダン' },
+    dynamics: { curve:[5,4,8,10,3,5,8,10,0,0,10,4] },
+    hook: { types:['音色フック','リフフック','ブレイクフック'], hook1:'印象的なシンセリードのドロップ', hook2:'ボーカルチョップによる掛け合い', hook3:'サビ前のブレイク' }
+  },
+  rock: {
+    name: 'バンドロック テンプレ',
+    concept: { theme:'夢・目標', emotion:'力強い・熱い', season:'ライブ・ステージ', situation:'夢を追いかける主人公', keywords:['夢','叫び','光','道'] },
+    tempo: { bpmRange:'131-150', bpmExact:'138', meter:'4/4', groove:'イーブン', grooveDir:'8ビート' },
+    key: { main:'Eマイナー', modulation:'なし' },
+    structure: { pattern:'王道J-POP型', length:'3:30前後', trick:'', memo:'Int8→A16→B8→S16→間8(ギターソロ)→A2 16→B2 8→S2 16→C16→ラスS16→Out8' },
+    melody: { range:'2オクターブ', highNote:'サビ最後', move:'跳躍多め', rest:'標準', density:'8分中心' },
+    arrange: { genre:'ロック', lead:'エレキギター', sub:['ピアノ装飾','シンセパッド'], acVsDigi:'完全生バンド寄り', texture:'暗い・重厚' },
+    dynamics: { curve:[6,5,7,9,7,5,7,9,6,3,10,5] },
+    hook: { types:['リフフック','メロディフック'], hook1:'印象的なギターリフ', hook2:'サビ頭のシャウト気味メロディ', hook3:'' }
+  },
+  anime: {
+    name: 'アニソン テンプレ',
+    concept: { theme:'夢・目標', emotion:'疾走感・解放感', season:'ライブ・ステージ', situation:'物語の主人公、戦いに向かう', keywords:['未来','光','希望','戦い'] },
+    tempo: { bpmRange:'151-180', bpmExact:'170', meter:'4/4', groove:'イーブン', grooveDir:'8ビート' },
+    key: { main:'Bマイナー', modulation:'ラスサビ半音上げ' },
+    structure: { pattern:'ABCサビ型', length:'3:30前後', trick:'落ちサビあり', memo:'Int8→A16→B16→C8(prechorus)→S16→間8→A2 16→B2 16→C2 8→S2 16→D16→落S8→ラスS20→Out8' },
+    melody: { range:'2オクターブ', highNote:'サビ最後', move:'跳躍多め', rest:'少ない', density:'16分多め' },
+    arrange: { genre:'アニソン', lead:'エレキギター', sub:['ストリングス','ブラス','シンセパッド','ベル/グロッケン','FX素材'], acVsDigi:'ハイブリッド・生多め', texture:'明るい・派手' },
+    dynamics: { curve:[5,4,6,7,9,6,5,7,9,5,2,10,4].slice(0,12) },
+    hook: { types:['メロディフック','リフフック','転調フック'], hook1:'サビ頭の印象的なメロディ', hook2:'ブラスのキメフレーズ', hook3:'ラスサビ半音転調' }
+  }
+};
+function applyTemplate(key) {
+  if (!key || !TEMPLATES[key]) return;
+  if (!confirm(TEMPLATES[key].name + ' を適用します。現在の入力は上書きされます。よろしいですか？')) {
+    $('#templateSelect').value = '';
+    return;
+  }
+  const t = JSON.parse(JSON.stringify(TEMPLATES[key]));
+  applyData(t);
+  $('#templateSelect').value = '';
+  showToast('テンプレ適用: ' + t.name);
+}
+
+// ==================== Export ====================
+function buildTextOutput() {
+  const d = getCurrentData();
+  const fmt = (v) => v || '(未設定)';
+  const fmtArr = (a) => (a && a.length) ? a.join(', ') : '(未設定)';
+
+  return `╔══════════════════════════════════════════╗
+   SONG PLAN: ${d.name}
+   ${new Date(d.savedAt).toLocaleString('ja-JP')}
+╚══════════════════════════════════════════╝
+
+[01] CONCEPT
+- テーマ: ${fmt(d.concept.theme)}
+- 感情: ${fmt(d.concept.emotion)}
+- 季節・場面: ${fmt(d.concept.season)}
+- 主人公の状況: ${fmt(d.concept.situation)}
+- キーワード: ${fmtArr(d.concept.keywords)}
+
+[02] TEMPO
+- BPMレンジ: ${fmt(d.tempo.bpmRange)}
+- 具体BPM: ${fmt(d.tempo.bpmExact)}
+- 拍子: ${fmt(d.tempo.meter)}
+- ノリ: ${fmt(d.tempo.groove)}
+- グルーヴ方向: ${fmt(d.tempo.grooveDir)}
+
+[03] KEY
+- メインキー: ${fmt(d.key.main)}
+- 転調: ${fmt(d.key.modulation)}
+
+[04] STRUCTURE
+- 構成パターン: ${fmt(d.structure.pattern)}
+- 全体長さ: ${fmt(d.structure.length)}
+- 仕掛け: ${fmt(d.structure.trick)}
+- メモ: ${fmt(d.structure.memo)}
+
+[05] MELODY
+- 音域: ${fmt(d.melody.range)}
+- 最高音位置: ${fmt(d.melody.highNote)}
+- 動き方: ${fmt(d.melody.move)}
+- 休符: ${fmt(d.melody.rest)}
+- 音価: ${fmt(d.melody.density)}
+
+[06] ARRANGE
+- ジャンル: ${fmt(d.arrange.genre)}
+- 主役楽器: ${fmt(d.arrange.lead)}
+- 補助楽器: ${fmtArr(d.arrange.sub)}
+- 生vs打: ${fmt(d.arrange.acVsDigi)}
+- 質感: ${fmt(d.arrange.texture)}
+
+[07] DYNAMICS CURVE
+${d.dynamics.sections.map((s, i) => `- ${s}: ${'█'.repeat(d.dynamics.curve[i])} ${d.dynamics.curve[i]}`).join('\n')}
+
+[08] HOOK
+- 種類: ${fmtArr(d.hook.types)}
+- フック1: ${fmt(d.hook.hook1)}
+- フック2: ${fmt(d.hook.hook2)}
+- フック3: ${fmt(d.hook.hook3)}
+`;
+}
+
+function exportText() {
+  $('#modalTitle').textContent = 'Text Export';
+  $('#modalContent').textContent = buildTextOutput();
+  $('#modalOverlay').classList.add('show');
+}
+
+function exportJSON() {
+  const d = getCurrentData();
+  const blob = new Blob([JSON.stringify(d, null, 2)], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (d.name || 'song-plan') + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('JSONダウンロード完了');
+}
+
+function copyModalContent() {
+  const text = $('#modalContent').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('コピーしました');
+  });
+}
+function closeModal() {
+  $('#modalOverlay').classList.remove('show');
+}
+
+// ==================== Init ====================
+document.addEventListener('DOMContentLoaded', () => {
+  setupChoices();
+  setupKeywordInput();
+  setupCurve();
+  refreshProjectSelect();
+});
+</script>
+
+</body>
+</html>
